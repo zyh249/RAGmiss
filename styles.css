@@ -366,7 +366,17 @@ code {
 }
 
 .detail-shell {
-  padding: 24px clamp(18px, 4vw, 42px) 56px;
+  width: min(1480px, 100%);
+  margin: 0 auto;
+  padding: 28px clamp(18px, 4vw, 42px) 64px;
+}
+
+.detail-page .site-header {
+  position: static;
+}
+
+.detail-page .brand-block {
+  max-width: 1100px;
 }
 
 .detail-summary {
@@ -395,7 +405,7 @@ code {
 
 .detail-grid {
   display: grid;
-  gap: 14px;
+  gap: 22px;
 }
 
 .source-file-card,
@@ -403,7 +413,8 @@ code {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 16px;
+  padding: 20px;
+  box-shadow: 0 12px 30px rgba(24, 32, 38, 0.05);
 }
 
 .source-file-card h3,
@@ -416,6 +427,14 @@ code {
   margin-top: -6px;
 }
 
+.source-file-card summary,
+.extension-file-card summary {
+  cursor: pointer;
+  font-weight: 800;
+  color: var(--vector);
+  margin: 10px 0;
+}
+
 .detail-code {
   max-height: 520px;
   overflow: auto;
@@ -425,12 +444,39 @@ code {
   padding: 16px;
 }
 
+.extension-intro {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin: 14px 0;
+}
+
+.extension-intro p {
+  margin: 0;
+}
+
+.extension-preview {
+  overflow: auto;
+  background: #dfe8ee;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
 .extension-frame {
-  width: 100%;
-  height: 520px;
+  display: block;
+  width: 1280px;
+  max-width: none;
+  height: 760px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: white;
+  box-shadow: 0 18px 42px rgba(24, 32, 38, 0.12);
 }
 
 .extension-image {
@@ -470,5 +516,15 @@ code {
   .glossary-grid,
   .detail-summary {
     grid-template-columns: 1fr;
+  }
+
+  .extension-intro {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .extension-frame {
+    width: 1100px;
+    height: 700px;
   }
 }

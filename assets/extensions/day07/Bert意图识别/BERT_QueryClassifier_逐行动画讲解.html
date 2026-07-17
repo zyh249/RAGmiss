@@ -1,0 +1,1042 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BERT QueryClassifier 逐行动画讲解</title>
+<style>
+:root {
+  --bg:#07111f;
+  --panel:#0d1b2c;
+  --code:#07131f;
+  --line:#20384f;
+  --text:#e9f4ff;
+  --muted:#90a8c1;
+  --blue:#4cc9f0;
+  --purple:#9b6cff;
+}
+* { box-sizing:border-box; }
+html {
+  height:100%;
+  overflow:hidden;
+}
+body {
+  margin:0;
+  font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif;
+  background:linear-gradient(135deg,#05101b,#091827);
+  color:var(--text);
+  height:100vh;
+  overflow:hidden;
+}
+header {
+  height:72px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 22px;
+  background:#081420;
+  border-bottom:1px solid var(--line);
+}
+header h1 {
+  margin:0;
+  font-size:22px;
+}
+header .sub {
+  margin-top:4px;
+  color:var(--muted);
+  font-size:12px;
+}
+.controls {
+  display:flex;
+  gap:8px;
+  align-items:center;
+}
+button, select {
+  border:1px solid #2d4c6d;
+  background:#10263b;
+  color:#fff;
+  border-radius:8px;
+  padding:9px 13px;
+  font-weight:700;
+  cursor:pointer;
+}
+button.primary {
+  background:linear-gradient(135deg,#2563eb,#7c3aed);
+  border:none;
+}
+button:disabled {
+  opacity:0.4;
+  cursor:not-allowed;
+}
+main {
+  display:grid;
+  grid-template-columns:48% 52%;
+  height:calc(100vh - 72px);
+}
+.left {
+  border-right:1px solid var(--line);
+  display:flex;
+  flex-direction:column;
+}
+.panel-head {
+  height:50px;
+  padding:0 16px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:#0b1828;
+  border-bottom:1px solid var(--line);
+}
+.panel-head .badge {
+  font-size:12px;
+  border:1px solid #2a5d80;
+  border-radius:999px;
+  padding:5px 10px;
+  color:#c7efff;
+}
+.code-wrap {
+  flex:1;
+  overflow:auto;
+  background:var(--code);
+  padding:10px 0 80px;
+  scroll-behavior:smooth;
+}
+.line {
+  display:grid;
+  grid-template-columns:58px 1fr;
+  min-height:25px;
+  border-left:4px solid transparent;
+  padding-right:16px;
+  transition:0.2s;
+}
+.line .num {
+  font:12px/25px Consolas,monospace;
+  color:#4d6b86;
+  text-align:right;
+  padding-right:12px;
+  user-select:none;
+}
+.line .txt {
+  white-space:pre;
+  font:13px/25px Consolas,monospace;
+  color:#c5d9ee;
+}
+.line.comment .txt {
+  color:#6f8aa3;
+}
+.line.active {
+  background:linear-gradient(90deg,rgba(76,201,240,.24),rgba(76,201,240,.03));
+  border-left-color:var(--blue);
+}
+.line.active .txt {
+  color:#fff;
+  font-weight:700;
+}
+.right {
+  overflow:auto;
+  padding:16px;
+}
+.progress-row {
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:14px;
+}
+.progress {
+  flex:1;
+  height:8px;
+  background:#14283b;
+  border-radius:999px;
+  overflow:hidden;
+}
+.progress .bar {
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,var(--blue),var(--purple));
+  transition:0.25s;
+}
+.count {
+  min-width:90px;
+  text-align:right;
+  font:12px Consolas,monospace;
+  color:#bfd0df;
+}
+.card {
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:16px;
+  margin-bottom:14px;
+}
+.card h3 {
+  margin:0 0 10px;
+  font-size:14px;
+}
+.explain {
+  border-top:3px solid var(--blue);
+}
+.type {
+  display:inline-block;
+  margin-bottom:10px;
+  font-size:11px;
+  padding:4px 9px;
+  border-radius:999px;
+  background:#123149;
+  color:#c8f1ff;
+}
+.title {
+  margin:0 0 10px;
+  font-size:20px;
+  font-weight:800;
+}
+.desc {
+  color:#bfd1e3;
+  line-height:1.8;
+  font-size:14px;
+}
+.io {
+  margin-top:12px;
+  background:#07131f;
+  border-left:3px solid var(--purple);
+  border-radius:9px;
+  padding:11px;
+  font:12px/1.65 Consolas,monospace;
+  color:#dbe9f7;
+}
+.flow {
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:8px;
+}
+.node {
+  padding:12px 8px;
+  border:1px solid #29455f;
+  border-radius:10px;
+  background:#091624;
+  text-align:center;
+  color:#6a849b;
+  font-size:12px;
+  transition:0.2s;
+}
+.node.active {
+  color:#fff;
+  border-color:var(--blue);
+  box-shadow:0 0 16px rgba(76,201,240,.18);
+  transform:translateY(-2px);
+}
+.current-code {
+  min-height:96px;
+  background:#07131f;
+  border-radius:10px;
+  padding:13px;
+  white-space:pre-wrap;
+  font:13px/1.8 Consolas,monospace;
+  color:#e2eefc;
+}
+.log {
+  flex:1 !important;
+  width:100%;
+  height:auto !important;
+  min-height:0 !important;
+  overflow-y:scroll !important;
+  overflow-x:hidden !important;
+  padding:10px 12px !important;
+  font-family:
+    "Microsoft YaHei UI",
+    "Microsoft YaHei",
+    "PingFang SC",
+    "Noto Sans CJK SC",
+    Consolas,
+    monospace !important;
+  font-size:13px !important;
+  font-weight:400 !important;
+  line-height:1.72 !important;
+  letter-spacing:0 !important;
+  color:#72efc0 !important;
+  scrollbar-width:auto !important;
+  scrollbar-color:#6a63e8 #081522 !important;
+}
+.log div {
+  color:#7ce0bb;
+  margin-bottom:4px;
+}
+@media (max-width: 1000px) {
+  body { height:auto; overflow:auto; }
+  main { grid-template-columns:1fr; height:auto; }
+  .left { height:720px; }
+  .right { overflow:visible; }
+}
+
+/* ===== 最终布局：禁止整页滚动，左右区域独立滚动 ===== */
+html,
+body {
+  width:100%;
+  height:100%;
+  overflow:hidden !important;
+}
+
+body {
+  margin:0;
+}
+
+header {
+  position:relative;
+  z-index:20;
+  height:72px;
+  flex:0 0 72px;
+}
+
+main {
+  width:100%;
+  height:calc(100vh - 72px) !important;
+  min-height:0;
+  overflow:hidden !important;
+  display:grid !important;
+  grid-template-columns:minmax(0,48%) minmax(0,52%) !important;
+}
+
+.left {
+  width:auto !important;
+  height:auto !important;
+  min-width:0;
+  min-height:0;
+  overflow:hidden !important;
+  display:grid !important;
+  grid-template-rows:50px minmax(0,1fr);
+  border-right:1px solid var(--line);
+}
+
+.panel-head {
+  min-height:0;
+}
+
+.code-wrap {
+  width:100%;
+  height:100%;
+  min-width:0;
+  min-height:0;
+  overflow-y:scroll !important;
+  overflow-x:auto !important;
+  padding:10px 0 70px;
+  scroll-behavior:smooth;
+  scrollbar-gutter:stable;
+}
+
+.right {
+  width:auto !important;
+  height:auto !important;
+  min-width:0;
+  min-height:0;
+  overflow:hidden !important;
+  padding:12px 16px 14px;
+  display:grid !important;
+  grid-template-rows:auto auto auto minmax(0,1fr);
+  gap:10px;
+}
+
+.progress-row {
+  margin:0 !important;
+}
+
+.card {
+  margin:0 !important;
+  min-height:0;
+  padding:13px 15px;
+}
+
+.explain {
+  overflow:hidden;
+}
+
+.flow {
+  gap:8px;
+}
+
+.node {
+  padding:8px 6px;
+}
+
+.log-card {
+  min-height:0 !important;
+  display:flex !important;
+  flex-direction:column;
+  overflow:hidden;
+  position:relative;
+}
+
+.log-card h3 {
+  flex:0 0 auto;
+}
+
+.log {
+  flex:1 !important;
+  width:100%;
+  height:auto !important;
+  min-height:0 !important;
+  overflow-y:scroll !important;
+  overflow-x:hidden;
+  scrollbar-gutter:stable;
+}
+
+/* 统一滚动条 */
+.code-wrap,
+.log {
+  scrollbar-width:auto;
+  scrollbar-color:#6a63e8 #081522;
+}
+
+.code-wrap::-webkit-scrollbar,
+.log::-webkit-scrollbar {
+  width:11px;
+  height:11px;
+}
+
+.code-wrap::-webkit-scrollbar-track,
+.log::-webkit-scrollbar-track {
+  background:#081522;
+  border-radius:999px;
+  box-shadow:inset 0 0 0 1px #173149;
+}
+
+.code-wrap::-webkit-scrollbar-thumb,
+.log::-webkit-scrollbar-thumb {
+  background:linear-gradient(180deg,#4cc9f0,#7257e8);
+  border:2px solid #081522;
+  border-radius:999px;
+  min-height:52px;
+}
+
+.code-wrap::-webkit-scrollbar-thumb:hover,
+.log::-webkit-scrollbar-thumb:hover {
+  background:linear-gradient(180deg,#7de2fa,#9278ff);
+}
+
+/* 只在小屏幕改成上下布局 */
+@media (max-width:1000px) {
+  html,
+  body {
+    height:auto;
+    overflow:auto !important;
+  }
+
+  main {
+    height:auto !important;
+    grid-template-columns:1fr !important;
+    overflow:visible !important;
+  }
+
+  .left {
+    height:700px !important;
+  }
+
+  .right {
+    height:760px !important;
+  }
+}
+
+
+.log::-webkit-scrollbar {
+  width:12px;
+}
+.log::-webkit-scrollbar-track {
+  background:#081522;
+  border-radius:999px;
+  box-shadow:inset 0 0 0 1px #173149;
+}
+.log::-webkit-scrollbar-thumb {
+  background:linear-gradient(180deg,#4cc9f0,#7257e8);
+  border:2px solid #081522;
+  border-radius:999px;
+  min-height:56px;
+}
+.log::-webkit-scrollbar-thumb:hover {
+  background:linear-gradient(180deg,#7de2fa,#9278ff);
+}
+.log::-webkit-scrollbar-button {
+  display:none;
+}
+
+
+.log::-webkit-scrollbar {
+  width:0;
+  height:0;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ===== 最终滚动条规则：隐藏最右侧整栏滚动条，仅保留日志自绘滚动条 ===== */
+html, body, main {
+  overflow: hidden !important;
+}
+
+.right {
+  overflow: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.right::-webkit-scrollbar,
+body::-webkit-scrollbar,
+html::-webkit-scrollbar,
+main::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+.log {
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  padding-right: 30px !important;
+}
+
+.log::-webkit-scrollbar {
+  width: 0 !important;
+  height: 0 !important;
+  display: none !important;
+}
+
+
+
+
+/* ===== 最终版：右侧无大滚动条，仅日志显示纵向滚动条 ===== */
+html,
+body,
+main,
+.right {
+  overflow:hidden !important;
+}
+
+.right {
+  scrollbar-width:none !important;
+  -ms-overflow-style:none !important;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+main::-webkit-scrollbar,
+.right::-webkit-scrollbar {
+  display:none !important;
+  width:0 !important;
+  height:0 !important;
+}
+
+/* 日志卡片 */
+.log-card {
+  position:relative !important;
+  min-height:0 !important;
+  overflow:hidden !important;
+}
+
+/* 日志正文：字体大小、字重、行距统一 */
+.log {
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  padding:10px 30px 12px 12px !important;
+  font-family:
+    "Microsoft YaHei UI",
+    "Microsoft YaHei",
+    "PingFang SC",
+    "Noto Sans CJK SC",
+    Consolas,
+    monospace !important;
+  font-size:13px !important;
+  font-weight:400 !important;
+  line-height:1.72 !important;
+  letter-spacing:0 !important;
+  color:#72efc0 !important;
+  scrollbar-width:none !important;
+  -ms-overflow-style:none !important;
+}
+
+.log div {
+  margin:0 0 3px 0 !important;
+  font:inherit !important;
+  color:#72efc0 !important;
+  white-space:normal !important;
+  word-break:break-word !important;
+}
+
+.log::-webkit-scrollbar {
+  display:none !important;
+  width:0 !important;
+  height:0 !important;
+}
+
+/* 日志专属自绘纵向滚动条 */
+
+
+
+
+
+
+/* 去掉上下三角，保持视觉简洁匀称 */
+
+
+
+/* ===== 隐藏左侧代码区滚动条，但保留滚动功能 ===== */
+.code-wrap {
+  overflow-y:auto !important;
+  overflow-x:auto !important;
+  scrollbar-width:none !important;
+  -ms-overflow-style:none !important;
+}
+
+.code-wrap::-webkit-scrollbar {
+  display:none !important;
+  width:0 !important;
+  height:0 !important;
+}
+
+/* 右侧整体不显示大滚动条 */
+.right {
+  overflow:hidden !important;
+  scrollbar-width:none !important;
+  -ms-overflow-style:none !important;
+}
+
+.right::-webkit-scrollbar {
+  display:none !important;
+  width:0 !important;
+  height:0 !important;
+}
+
+/* 日志区保留专属滚动条 */
+.log {
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+}
+
+
+/* ===== 重新生成：右侧整栏无滚动条，左侧代码区显示独立滚动条 ===== */
+
+/* 页面与右侧整栏：不显示最右侧大滚动条 */
+html,
+body,
+main,
+.right {
+  overflow:hidden !important;
+}
+
+.right {
+  scrollbar-width:none !important;
+  -ms-overflow-style:none !important;
+}
+
+.right::-webkit-scrollbar {
+  display:none !important;
+  width:0 !important;
+  height:0 !important;
+}
+
+/* 左侧代码区：保留独立纵向滚动条 */
+.code-wrap {
+  overflow-y:scroll !important;
+  overflow-x:auto !important;
+  scrollbar-width:auto !important;
+  scrollbar-color:#6c63e8 #081522 !important;
+  scrollbar-gutter:stable !important;
+  padding-right:2px !important;
+}
+
+.code-wrap::-webkit-scrollbar {
+  display:block !important;
+  width:11px !important;
+  height:11px !important;
+}
+
+.code-wrap::-webkit-scrollbar-track {
+  background:#081522 !important;
+  border-radius:999px !important;
+  box-shadow:inset 0 0 0 1px #173149 !important;
+}
+
+.code-wrap::-webkit-scrollbar-thumb {
+  background:linear-gradient(180deg,#4cc9f0 0%,#7257e8 100%) !important;
+  border:2px solid #081522 !important;
+  border-radius:999px !important;
+  min-height:54px !important;
+}
+
+.code-wrap::-webkit-scrollbar-thumb:hover {
+  background:linear-gradient(180deg,#7ee3fb 0%,#947cff 100%) !important;
+}
+
+.code-wrap::-webkit-scrollbar-corner {
+  background:#081522 !important;
+}
+
+/* 日志区域继续使用专属纵向滚动条 */
+.log {
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+}
+
+
+.log::-webkit-scrollbar {
+  display:block !important;
+  width:11px !important;
+}
+.log::-webkit-scrollbar-track {
+  background:#081522 !important;
+  border-radius:999px !important;
+  box-shadow:inset 0 0 0 1px #173149 !important;
+}
+.log::-webkit-scrollbar-thumb {
+  background:linear-gradient(180deg,#4cc9f0 0%,#7257e8 100%) !important;
+  border:2px solid #081522 !important;
+  border-radius:999px !important;
+  min-height:52px !important;
+}
+.log::-webkit-scrollbar-thumb:hover {
+  background:linear-gradient(180deg,#7ee3fb 0%,#947cff 100%) !important;
+}
+.log::-webkit-scrollbar-corner {
+  background:#081522 !important;
+}
+
+
+/* ===== 日志滚动条最终修复 ===== */
+.log-card {
+  height:340px !important;
+  min-height:340px !important;
+  max-height:340px !important;
+  display:flex !important;
+  flex-direction:column !important;
+  overflow:hidden !important;
+}
+
+.log-card > h3 {
+  flex:0 0 auto !important;
+  margin:0 0 10px 0 !important;
+}
+
+.log-card > .log {
+  flex:1 1 auto !important;
+  height:0 !important;
+  min-height:0 !important;
+  max-height:none !important;
+  overflow-y:scroll !important;
+  overflow-x:hidden !important;
+  padding:10px 12px !important;
+  box-sizing:border-box !important;
+  scrollbar-width:auto !important;
+  scrollbar-color:#6a63e8 #081522 !important;
+}
+
+.log-card > .log::-webkit-scrollbar {
+  display:block !important;
+  width:11px !important;
+}
+
+.log-card > .log::-webkit-scrollbar-track {
+  background:#081522 !important;
+  border-radius:999px !important;
+  box-shadow:inset 0 0 0 1px #173149 !important;
+}
+
+.log-card > .log::-webkit-scrollbar-thumb {
+  background:linear-gradient(180deg,#4cc9f0 0%,#7257e8 100%) !important;
+  border:2px solid #081522 !important;
+  border-radius:999px !important;
+  min-height:52px !important;
+}
+
+.log-card > .log::-webkit-scrollbar-thumb:hover {
+  background:linear-gradient(180deg,#7ee3fb 0%,#947cff 100%) !important;
+}
+
+
+/* 当前代码行对应的最后一条日志 */
+.log .current-log-line {
+  color:#bdfbe7 !important;
+  background:rgba(76,201,240,.09) !important;
+  border-left:3px solid #4cc9f0 !important;
+  border-radius:5px !important;
+  padding:3px 7px !important;
+  margin-top:4px !important;
+}
+
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>BERT QueryClassifier 逐行动画讲解</h1>
+    <div class="sub">逐行解释代码，支持自动播放、上一行、下一行、重置和速度切换</div>
+  </div>
+  <div class="controls">
+    <button id="prev">上一行</button>
+    <button id="play" class="primary">自动播放</button>
+    <button id="next">下一行</button>
+    <button id="reset">重置</button>
+    <select id="speed">
+      <option value="3000">慢速</option>
+      <option value="1800" selected>正常</option>
+      <option value="900">快速</option>
+    </select>
+  </div>
+</header>
+
+<main>
+  <section class="left">
+    <div class="panel-head">
+      <strong>query_classifier.py</strong>
+      <span class="badge" id="badge">等待开始</span>
+    </div>
+    <div class="code-wrap" id="codeWrap"></div>
+  </section>
+
+  <section class="right">
+    <div class="progress-row">
+      <div class="progress"><div class="bar" id="bar"></div></div>
+      <div class="count" id="count">0/193</div>
+    </div>
+
+    <div class="card explain">
+      <div class="type" id="type">准备</div>
+      <div class="title" id="title">点击“自动播放”或“下一行”</div>
+      <div class="desc" id="desc">动画会从第一行开始，逐行解释代码，并持续往下播放，不会卡在中间。</div>
+      <div class="io" id="io">输入 / 输出：等待执行</div>
+    </div>
+
+    <div class="card">
+      <h3>当前代码所在流程</h3>
+      <div class="flow">
+        <div class="node" data-stage="导入依赖">导入依赖</div>
+        <div class="node" data-stage="处理路径">处理路径</div>
+        <div class="node" data-stage="初始化模型">初始化模型</div>
+        <div class="node" data-stage="数据处理">数据处理</div>
+        <div class="node" data-stage="训练评估">训练评估</div>
+        <div class="node" data-stage="预测输出">预测输出</div>
+      </div>
+    </div>
+
+    <div class="card log-card">
+      <h3>逐行讲解日志</h3>
+      <div class="log" id="log"></div>
+
+    </div>
+  </section>
+</main>
+
+<script>
+const lines = ["# 导入标准库", "import json", "import os", "# 导入 PyTorch", "import torch", "# 导入日志", "import sys", "from base.logger import logger", "# 导入numpy", "import numpy as np", "# 导入 Transformers 库", "from transformers import BertTokenizer, BertForSequenceClassification", "from transformers import Trainer, TrainingArguments", "# 导入train_test_split", "from sklearn.model_selection import train_test_split", "from sklearn.metrics import classification_report, confusion_matrix", "", "current_dir = os.path.dirname(os.path.abspath(__file__))", "rag_qa_path = os.path.abspath(os.path.dirname(os.path.abspath(current_dir)))", "project_root = os.path.abspath(os.path.dirname(os.path.abspath(rag_qa_path)))", "sys.path.insert(0, project_root)", "", "class QueryClassifier:", "    def __init__(self, model_path='models/bert_query_classifier'):", "        self.pre_trained_model_path = f'{rag_qa_path}/models/bert-base-chinese'", "        self.model_path = model_path", "        self.tokenizer = BertTokenizer.from_pretrained(self.pre_trained_model_path)", "        self.model = None", "        self.device = torch.device(\"cuda\" if torch.cuda.is_available() else \"mps\" if torch.mps.is_available() else \"cpu\")", "        logger.info(f\"使用设备: {self.device}\")", "        self.label_map = {\"通用知识\": 0, \"专业咨询\": 1}", "        self.load_model()", "", "    def load_model(self):", "        if os.path.exists(self.model_path):", "            self.model = BertForSequenceClassification.from_pretrained(self.model_path)", "            self.model.to(self.device)", "            logger.info(f\"加载模型: {self.model_path}\")", "        else:", "            self.model = BertForSequenceClassification.from_pretrained(", "                self.pre_trained_model_path,", "                num_labels=2", "            )", "            self.model.to(self.device)", "            logger.info(\"初始化新 BERT 模型\")", "", "    def save_model(self):", "        self.model.save_pretrained(self.model_path)", "        self.tokenizer.save_pretrained(self.model_path)", "", "    def preprocess_data(self, texts, labels):", "        encodings = self.tokenizer(", "            texts,", "            truncation=True,", "            padding=True,", "            max_length=128,", "            return_tensors=\"pt\"", "        )", "        return encodings, [self.label_map[label] for label in labels]", "", "    def create_dataset(self, encodings, labels):", "        class Dataset(torch.utils.data.Dataset):", "            def __init__(self, encodings, labels):", "                self.encodings = encodings", "                self.labels = labels", "", "            def __getitem__(self, idx):", "                item = {key: val[idx] for key, val in self.encodings.items()}", "                item[\"labels\"] = torch.tensor(self.labels[idx])", "                return item", "", "            def __len__(self):", "                return len(self.labels)", "", "        return Dataset(encodings, labels)", "", "    def train_model(self, data_file=\"training_dataset_hybrid_5000.json\"):", "        if not os.path.exists(data_file):", "            logger.error(f\"数据集文件 {data_file} 不存在\")", "            raise FileNotFoundError(f\"数据集文件 {data_file} 不存在\")", "", "        with open(data_file, \"r\", encoding=\"utf-8\") as f:", "            data = [json.loads(value) for value in f.readlines()]", "", "        texts = [item[\"query\"] for item in data]", "        labels = [item[\"label\"] for item in data]", "", "        train_texts, val_texts, train_labels, val_labels = train_test_split(", "            texts, labels, test_size=0.2, random_state=42", "        )", "", "        train_encodings, train_labels = self.preprocess_data(train_texts, train_labels)", "        val_encodings, val_labels = self.preprocess_data(val_texts, val_labels)", "", "        train_dataset = self.create_dataset(train_encodings, train_labels)", "        val_dataset = self.create_dataset(val_encodings, val_labels)", "", "        training_args = TrainingArguments(", "            output_dir=\"./bert_results\",", "            num_train_epochs=3,", "            per_device_train_batch_size=8,", "            per_device_eval_batch_size=8,", "            warmup_steps=500,", "            weight_decay=0.01,", "            logging_dir=\"./bert_logs\",", "            logging_steps=10,", "            evaluation_strategy=\"epoch\",", "            save_strategy=\"epoch\",", "            load_best_model_at_end=True,", "            save_total_limit=1,", "            metric_for_best_model=\"eval_loss\",", "            fp16=False,", "        )", "", "        trainer = Trainer(", "            model=self.model,", "            args=training_args,", "            train_dataset=train_dataset,", "            eval_dataset=val_dataset,", "            compute_metrics=self.compute_metrics", "        )", "", "        logger.info(\"开始训练 BERT 模型...\")", "        trainer.train()", "        self.save_model()", "        self.evaluate_model(val_texts, val_labels)", "", "    def compute_metrics(self, eval_pred):", "        logits, labels = eval_pred", "        predictions = np.argmax(logits, axis=-1)", "        accuracy = (predictions == labels).mean()", "        return {\"accuracy\": accuracy}", "", "    def evaluate_model(self, texts, labels):", "        encodings = self.tokenizer(", "            texts,", "            truncation=True,", "            padding=True,", "            max_length=128,", "            return_tensors=\"pt\"", "        )", "        dataset = self.create_dataset(encodings, labels)", "", "        trainer = Trainer(model=self.model)", "        predictions = trainer.predict(dataset)", "        pred_labels = np.argmax(predictions.predictions, axis=-1)", "        true_labels = labels", "", "        logger.info(\"分类报告:\")", "        logger.info(classification_report(", "            true_labels,", "            pred_labels,", "            target_names=[\"通用知识\", \"专业咨询\"]", "        ))", "        logger.info(\"混淆矩阵:\")", "        logger.info(confusion_matrix(true_labels, pred_labels))", "", "    def predict_category(self, query):", "        if self.model is None:", "            logger.error(\"模型未训练或加载\")", "            return \"通用知识\"", "", "        encoding = self.tokenizer(", "            query,", "            truncation=True,", "            padding=True,", "            max_length=128,", "            return_tensors=\"pt\"", "        )", "", "        encoding = {k: v.to(self.device) for k, v in encoding.items()}", "", "        with torch.no_grad():", "            outputs = self.model(**encoding)", "            prediction = torch.argmax(outputs.logits, dim=1).item()", "", "        return \"专业咨询\" if prediction == 1 else \"通用知识\"", "", "if __name__ == \"__main__\":", "    classifier = QueryClassifier(", "        model_path=\"bert_query_classifier\"", "    )", "", "    test_queries = [", "        \"AI学科的课程大纲是什么\",", "        \"JAVA课程费用多少？\",", "        \"5*9等于多少？\",", "        \"AI培训有哪些老师？\"", "    ]", "", "    for query in test_queries:", "        category = classifier.predict_category(query)", "        print(f\"查询: {query} -> 分类: {category}\")"];
+const explainData = [{"type": "注释", "title": "第 1 行：注释", "desc": "导入标准库", "io": "不会执行", "stage": "导入依赖"}, {"type": "导包", "title": "第 2 行：导入依赖", "desc": "导入后续代码需要使用的模块、类或函数。", "io": "模块加入当前运行环境", "stage": "导入依赖"}, {"type": "导包", "title": "第 3 行：导入依赖", "desc": "导入后续代码需要使用的模块、类或函数。", "io": "模块加入当前运行环境", "stage": "导入依赖"}, {"type": "注释", "title": "第 4 行：注释", "desc": "导入 PyTorch", "io": "不会执行", "stage": "导入依赖"}, {"type": "导包", "title": "第 5 行：导入依赖", "desc": "导入后续代码需要使用的模块、类或函数。", "io": "模块加入当前运行环境", "stage": "导入依赖"}, {"type": "注释", "title": "第 6 行：注释", "desc": "导入日志", "io": "不会执行", "stage": "导入依赖"}, {"type": "导包", "title": "第 7 行：导入依赖", "desc": "导入后续代码需要使用的模块、类或函数。", "io": "模块加入当前运行环境", "stage": "导入依赖"}, {"type": "导包", "title": "第 8 行：导入依赖", "desc": "导入后续代码需要使用的模块、类或函数。", "io": "模块加入当前运行环境", "stage": "导入依赖"}, {"type": "注释", "title": "第 9 行：注释", "desc": "导入numpy", "io": "不会执行", "stage": "导入依赖"}, {"type": "导包", "title": "第 10 行：导入依赖", "desc": "导入后续代码需要使用的模块、类或函数。", "io": "模块加入当前运行环境", "stage": "导入依赖"}, {"type": "注释", "title": "第 11 行：注释", "desc": "导入 Transformers 库", "io": "不会执行", "stage": "导入依赖"}, {"type": "导包", "title": "第 12 行：导入依赖", "desc": "导入后续代码需要使用的模块、类或函数。", "io": "模块加入当前运行环境", "stage": "导入依赖"}, {"type": "导包", "title": "第 13 行：导入依赖", "desc": "导入后续代码需要使用的模块、类或函数。", "io": "模块加入当前运行环境", "stage": "导入依赖"}, {"type": "注释", "title": "第 14 行：注释", "desc": "导入train_test_split", "io": "不会执行", "stage": "导入依赖"}, {"type": "导包", "title": "第 15 行：导入依赖", "desc": "导入后续代码需要使用的模块、类或函数。", "io": "模块加入当前运行环境", "stage": "导入依赖"}, {"type": "导包", "title": "第 16 行：导入依赖", "desc": "导入后续代码需要使用的模块、类或函数。", "io": "模块加入当前运行环境", "stage": "导入依赖"}, {"type": "结构", "title": "第 17 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "处理路径"}, {"type": "路径", "title": "第 18 行：获取当前文件目录", "desc": "通过 __file__ 取得当前 Python 文件路径，再获取它所在的目录。", "io": "输出 current_dir", "stage": "处理路径"}, {"type": "路径", "title": "第 19 行：获取 rag_qa 模块路径", "desc": "从当前目录继续向上寻找 rag_qa 模块目录。", "io": "输出 rag_qa_path", "stage": "处理路径"}, {"type": "路径", "title": "第 20 行：获取项目根目录", "desc": "继续向上一级得到整个项目的根目录。", "io": "输出 project_root", "stage": "处理路径"}, {"type": "路径", "title": "第 21 行：加入模块搜索路径", "desc": "把项目根目录加入 sys.path，这样 Python 才能找到项目中的自定义模块。", "io": "修改 sys.path", "stage": "处理路径"}, {"type": "结构", "title": "第 22 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "初始化模型"}, {"type": "类定义", "title": "第 23 行：定义 QueryClassifier 类", "desc": "把模型加载、训练、评估、预测这些能力封装到一个类中，便于后续统一调用。", "io": "创建类模板", "stage": "初始化模型"}, {"type": "方法定义", "title": "第 24 行：定义方法 __init__", "desc": "这里只是定义函数/方法，只有后面真正调用它时，内部代码才会执行。", "io": "注册方法", "stage": "初始化模型"}, {"type": "模型路径", "title": "第 25 行：设置预训练模型路径", "desc": "指定本地 bert-base-chinese 所在位置，后续加载 Tokenizer 和 BERT 时会用到。", "io": "保存到 self.pre_trained_model_path", "stage": "初始化模型"}, {"type": "模型路径", "title": "第 26 行：设置分类模型保存路径", "desc": "保存训练后分类模型的目录位置，后续可用于加载或保存模型。", "io": "保存到 self.model_path", "stage": "初始化模型"}, {"type": "模型路径", "title": "第 27 行：设置预训练模型路径", "desc": "指定本地 bert-base-chinese 所在位置，后续加载 Tokenizer 和 BERT 时会用到。", "io": "保存到 self.pre_trained_model_path", "stage": "初始化模型"}, {"type": "初始化", "title": "第 28 行：初始化模型变量", "desc": "先把模型设为空，随后调用 load_model 再真正加载模型。", "io": "self.model = None", "stage": "初始化模型"}, {"type": "设备", "title": "第 29 行：确定运行设备", "desc": "优先使用 CUDA，其次 MPS，最后使用 CPU。模型和输入必须位于同一个设备。", "io": "输出 self.device", "stage": "初始化模型"}, {"type": "日志", "title": "第 30 行：输出日志", "desc": "通过日志记录当前运行状态，比如设备信息、模型加载成功等。", "io": "输出 INFO 日志", "stage": "初始化模型"}, {"type": "标签映射", "title": "第 31 行：定义标签映射", "desc": "把中文类别映射成数字：通用知识→0，专业咨询→1。", "io": "输出标签字典", "stage": "初始化模型"}, {"type": "方法调用", "title": "第 32 行：调用 load_model", "desc": "初始化对象时，马上执行模型加载逻辑。", "io": "触发 load_model()", "stage": "初始化模型"}, {"type": "结构", "title": "第 33 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "初始化模型"}, {"type": "方法定义", "title": "第 34 行：定义方法 load_model", "desc": "这里只是定义函数/方法，只有后面真正调用它时，内部代码才会执行。", "io": "注册方法", "stage": "初始化模型"}, {"type": "判断", "title": "第 35 行：判断路径是否存在", "desc": "检查当前模型目录或数据文件是否存在，然后决定下一步分支。", "io": "返回 True / False", "stage": "初始化模型"}, {"type": "模型", "title": "第 36 行：加载 BERT 分类模型", "desc": "加载带有分类头的 BERT 模型，它最终会输出两个类别的 logits。", "io": "输出 self.model", "stage": "初始化模型"}, {"type": "设备", "title": "第 37 行：移动到指定设备", "desc": "把模型或张量移动到 self.device，避免设备不一致导致报错。", "io": "对象位于目标设备", "stage": "初始化模型"}, {"type": "日志", "title": "第 38 行：输出日志", "desc": "通过日志记录当前运行状态，比如设备信息、模型加载成功等。", "io": "输出 INFO 日志", "stage": "初始化模型"}, {"type": "执行语句", "title": "第 39 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "else:", "stage": "初始化模型"}, {"type": "模型", "title": "第 40 行：加载 BERT 分类模型", "desc": "加载带有分类头的 BERT 模型，它最终会输出两个类别的 logits。", "io": "输出 self.model", "stage": "初始化模型"}, {"type": "模型路径", "title": "第 41 行：设置预训练模型路径", "desc": "指定本地 bert-base-chinese 所在位置，后续加载 Tokenizer 和 BERT 时会用到。", "io": "保存到 self.pre_trained_model_path", "stage": "初始化模型"}, {"type": "模型参数", "title": "第 42 行：设置类别数量", "desc": "当前任务是二分类，因此 num_labels=2。", "io": "分类层输出维度=2", "stage": "初始化模型"}, {"type": "结构", "title": "第 43 行：结束当前代码块", "desc": "这一行用于结束上一行打开的参数列表、列表、字典或代码块。", "io": "完成当前语法结构", "stage": "初始化模型"}, {"type": "设备", "title": "第 44 行：移动到指定设备", "desc": "把模型或张量移动到 self.device，避免设备不一致导致报错。", "io": "对象位于目标设备", "stage": "初始化模型"}, {"type": "日志", "title": "第 45 行：输出日志", "desc": "通过日志记录当前运行状态，比如设备信息、模型加载成功等。", "io": "输出 INFO 日志", "stage": "初始化模型"}, {"type": "结构", "title": "第 46 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "初始化模型"}, {"type": "方法定义", "title": "第 47 行：定义方法 save_model", "desc": "这里只是定义函数/方法，只有后面真正调用它时，内部代码才会执行。", "io": "注册方法", "stage": "初始化模型"}, {"type": "保存", "title": "第 48 行：保存预训练格式文件", "desc": "按照 Hugging Face 标准格式保存模型或 Tokenizer，方便后续直接 from_pretrained 加载。", "io": "写入模型目录", "stage": "初始化模型"}, {"type": "保存", "title": "第 49 行：保存预训练格式文件", "desc": "按照 Hugging Face 标准格式保存模型或 Tokenizer，方便后续直接 from_pretrained 加载。", "io": "写入模型目录", "stage": "初始化模型"}, {"type": "结构", "title": "第 50 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "初始化模型"}, {"type": "方法定义", "title": "第 51 行：定义方法 preprocess_data", "desc": "这里只是定义函数/方法，只有后面真正调用它时，内部代码才会执行。", "io": "注册方法", "stage": "初始化模型"}, {"type": "编码", "title": "第 52 行：开始文本编码", "desc": "调用 Tokenizer 把文本转换成 BERT 所需的输入格式。", "io": "输入文本，输出 encodings", "stage": "初始化模型"}, {"type": "编码", "title": "第 53 行：开始文本编码", "desc": "调用 Tokenizer 把文本转换成 BERT 所需的输入格式。", "io": "输入文本，输出 encodings", "stage": "数据处理"}, {"type": "Tokenizer参数", "title": "第 54 行：启用截断", "desc": "文本过长时自动截断，避免超过模型最大输入长度。", "io": "限制超长文本", "stage": "数据处理"}, {"type": "Tokenizer参数", "title": "第 55 行：启用补齐", "desc": "把一个 batch 中不同长度的文本补齐到相同长度。", "io": "短文本会补 PAD", "stage": "数据处理"}, {"type": "Tokenizer参数", "title": "第 56 行：设置最大长度", "desc": "每条输入文本最多保留 128 个 Token。", "io": "最大长度=128", "stage": "数据处理"}, {"type": "Tokenizer参数", "title": "第 57 行：返回 PyTorch 张量", "desc": "要求 Tokenizer 输出 torch.Tensor，而不是普通 Python 列表。", "io": "输出 Tensor", "stage": "数据处理"}, {"type": "结构", "title": "第 58 行：结束当前代码块", "desc": "这一行用于结束上一行打开的参数列表、列表、字典或代码块。", "io": "完成当前语法结构", "stage": "数据处理"}, {"type": "返回值", "title": "第 59 行：返回编码与数字标签", "desc": "把文本编码结果和数字化后的标签一起返回。", "io": "输出 encodings, label_ids", "stage": "数据处理"}, {"type": "结构", "title": "第 60 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "数据处理"}, {"type": "方法定义", "title": "第 61 行：定义方法 create_dataset", "desc": "这里只是定义函数/方法，只有后面真正调用它时，内部代码才会执行。", "io": "注册方法", "stage": "数据处理"}, {"type": "类定义", "title": "第 62 行：定义 Dataset 内部类", "desc": "这是一个 PyTorch 数据集类，专门给 Trainer 提供训练样本。", "io": "创建 Dataset 模板", "stage": "数据处理"}, {"type": "方法定义", "title": "第 63 行：定义方法 __init__", "desc": "这里只是定义函数/方法，只有后面真正调用它时，内部代码才会执行。", "io": "注册方法", "stage": "数据处理"}, {"type": "Dataset", "title": "第 64 行：保存编码结果", "desc": "把所有样本的编码结果保存到 Dataset 对象中。", "io": "保存 encodings", "stage": "数据处理"}, {"type": "Dataset", "title": "第 65 行：保存标签", "desc": "把所有数字标签保存到 Dataset 对象中。", "io": "保存 labels", "stage": "数据处理"}, {"type": "结构", "title": "第 66 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "数据处理"}, {"type": "方法定义", "title": "第 67 行：定义方法 __getitem__", "desc": "这里只是定义函数/方法，只有后面真正调用它时，内部代码才会执行。", "io": "注册方法", "stage": "数据处理"}, {"type": "Dataset", "title": "第 68 行：取出一条样本的编码", "desc": "根据 idx 从 input_ids、attention_mask 等字段中取出当前样本的数据。", "io": "输出当前样本字典", "stage": "数据处理"}, {"type": "Dataset", "title": "第 69 行：加入标签", "desc": "把当前样本的真实标签加入样本字典中，Trainer 会自动用它计算损失。", "io": "样本新增 labels", "stage": "数据处理"}, {"type": "返回值", "title": "第 70 行：返回单条样本", "desc": "返回当前索引对应的完整训练样本。", "io": "输出 sample dict", "stage": "数据处理"}, {"type": "结构", "title": "第 71 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "数据处理"}, {"type": "方法定义", "title": "第 72 行：定义方法 __len__", "desc": "这里只是定义函数/方法，只有后面真正调用它时，内部代码才会执行。", "io": "注册方法", "stage": "数据处理"}, {"type": "返回值", "title": "第 73 行：返回数据集长度", "desc": "告诉 Trainer 当前 Dataset 一共有多少条样本。", "io": "输出样本数量", "stage": "数据处理"}, {"type": "结构", "title": "第 74 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "数据处理"}, {"type": "返回值", "title": "第 75 行：实例化 Dataset", "desc": "用编码和标签创建 Dataset 对象并返回。", "io": "输出 Dataset 实例", "stage": "数据处理"}, {"type": "结构", "title": "第 76 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "数据处理"}, {"type": "方法定义", "title": "第 77 行：定义方法 train_model", "desc": "这里只是定义函数/方法，只有后面真正调用它时，内部代码才会执行。", "io": "注册方法", "stage": "数据处理"}, {"type": "判断", "title": "第 78 行：判断路径是否存在", "desc": "检查当前模型目录或数据文件是否存在，然后决定下一步分支。", "io": "返回 True / False", "stage": "数据处理"}, {"type": "日志", "title": "第 79 行：输出错误日志", "desc": "当模型或数据集不存在时，用错误日志提示问题。", "io": "输出 ERROR 日志", "stage": "数据处理"}, {"type": "执行语句", "title": "第 80 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "raise FileNotFoundError(f\"数据集文件 {data_file} 不存在\")", "stage": "数据处理"}, {"type": "结构", "title": "第 81 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "数据处理"}, {"type": "文件读取", "title": "第 82 行：打开数据文件", "desc": "以只读方式打开 JSONL 数据文件。", "io": "输出文件对象 f", "stage": "数据处理"}, {"type": "数据读取", "title": "第 83 行：解析 JSONL", "desc": "逐行读取数据，并把 JSON 字符串转换为 Python 字典。", "io": "输出 data 列表", "stage": "数据处理"}, {"type": "结构", "title": "第 84 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "数据处理"}, {"type": "数据处理", "title": "第 85 行：提取问题文本", "desc": "从每条数据中取出 query 字段，形成训练文本列表。", "io": "输出 texts", "stage": "数据处理"}, {"type": "数据处理", "title": "第 86 行：提取标签", "desc": "从每条数据中取出 label 字段，形成标签列表。", "io": "输出 labels", "stage": "数据处理"}, {"type": "结构", "title": "第 87 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "数据处理"}, {"type": "数据划分", "title": "第 88 行：划分训练集和验证集", "desc": "把数据按 80%/20% 划分成训练集和验证集。", "io": "输出 train/val 四组数据", "stage": "数据处理"}, {"type": "执行语句", "title": "第 89 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "texts, labels, test_size=0.2, random_state=42", "stage": "训练评估"}, {"type": "结构", "title": "第 90 行：结束当前代码块", "desc": "这一行用于结束上一行打开的参数列表、列表、字典或代码块。", "io": "完成当前语法结构", "stage": "训练评估"}, {"type": "结构", "title": "第 91 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "训练评估"}, {"type": "预处理", "title": "第 92 行：预处理数据", "desc": "把文本转成 BERT 输入张量，同时把中文标签转换为数字标签。", "io": "输出 encodings 与 label_ids", "stage": "训练评估"}, {"type": "预处理", "title": "第 93 行：预处理数据", "desc": "把文本转成 BERT 输入张量，同时把中文标签转换为数字标签。", "io": "输出 encodings 与 label_ids", "stage": "训练评估"}, {"type": "结构", "title": "第 94 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "训练评估"}, {"type": "Dataset", "title": "第 95 行：创建 Dataset", "desc": "把编码结果和标签封装成 Trainer 可使用的数据集对象。", "io": "输出 Dataset", "stage": "训练评估"}, {"type": "Dataset", "title": "第 96 行：创建 Dataset", "desc": "把编码结果和标签封装成 Trainer 可使用的数据集对象。", "io": "输出 Dataset", "stage": "训练评估"}, {"type": "结构", "title": "第 97 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "训练评估"}, {"type": "训练配置", "title": "第 98 行：创建训练参数", "desc": "统一配置训练轮数、batch size、评估策略、保存策略等参数。", "io": "输出 training_args", "stage": "训练评估"}, {"type": "训练参数", "title": "第 99 行：设置输出目录", "desc": "训练过程中保存检查点的目录。", "io": "输出目录路径", "stage": "训练评估"}, {"type": "训练参数", "title": "第 100 行：设置训练轮数", "desc": "表示模型会完整遍历训练集 3 次。", "io": "epochs = 3", "stage": "训练评估"}, {"type": "训练参数", "title": "第 101 行：设置训练 batch 大小", "desc": "每个设备一次送入 8 条训练样本。", "io": "train batch size = 8", "stage": "训练评估"}, {"type": "训练参数", "title": "第 102 行：设置验证 batch 大小", "desc": "每个设备一次送入 8 条验证样本。", "io": "eval batch size = 8", "stage": "训练评估"}, {"type": "训练参数", "title": "第 103 行：设置学习率预热", "desc": "前 500 步逐渐增大学习率，避免训练初期更新过猛。", "io": "warmup steps = 500", "stage": "训练评估"}, {"type": "训练参数", "title": "第 104 行：设置权重衰减", "desc": "使用权重衰减抑制过拟合。", "io": "weight_decay = 0.01", "stage": "训练评估"}, {"type": "训练参数", "title": "第 105 行：设置日志目录", "desc": "训练日志会被写入这个目录。", "io": "logging_dir", "stage": "训练评估"}, {"type": "训练参数", "title": "第 106 行：设置日志步数", "desc": "每训练 10 步记录一次日志。", "io": "logging_steps = 10", "stage": "训练评估"}, {"type": "训练参数", "title": "第 107 行：设置评估策略", "desc": "每个 epoch 结束后在验证集上评估一次。", "io": "evaluation per epoch", "stage": "训练评估"}, {"type": "训练参数", "title": "第 108 行：设置保存策略", "desc": "每个 epoch 结束后保存一个模型检查点。", "io": "save per epoch", "stage": "训练评估"}, {"type": "训练参数", "title": "第 109 行：加载最佳模型", "desc": "训练结束后自动恢复验证效果最好的模型。", "io": "使用最佳 checkpoint", "stage": "训练评估"}, {"type": "训练参数", "title": "第 110 行：限制保存数量", "desc": "最多只保留 1 个检查点，避免占用太多磁盘空间。", "io": "save_total_limit = 1", "stage": "训练评估"}, {"type": "训练参数", "title": "第 111 行：最佳模型判断指标", "desc": "用 eval_loss 来判断哪个模型最好。", "io": "best metric = eval_loss", "stage": "训练评估"}, {"type": "训练参数", "title": "第 112 行：关闭半精度训练", "desc": "当前训练使用 FP32，不启用 FP16。", "io": "fp16 = False", "stage": "训练评估"}, {"type": "结构", "title": "第 113 行：结束当前代码块", "desc": "这一行用于结束上一行打开的参数列表、列表、字典或代码块。", "io": "完成当前语法结构", "stage": "训练评估"}, {"type": "结构", "title": "第 114 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "训练评估"}, {"type": "Trainer", "title": "第 115 行：创建 Trainer", "desc": "把模型、参数、训练集、验证集和指标函数交给 Hugging Face Trainer。", "io": "输出 trainer", "stage": "训练评估"}, {"type": "执行语句", "title": "第 116 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "model=self.model,", "stage": "训练评估"}, {"type": "执行语句", "title": "第 117 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "args=training_args,", "stage": "训练评估"}, {"type": "执行语句", "title": "第 118 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "train_dataset=train_dataset,", "stage": "训练评估"}, {"type": "执行语句", "title": "第 119 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "eval_dataset=val_dataset,", "stage": "训练评估"}, {"type": "执行语句", "title": "第 120 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "compute_metrics=self.compute_metrics", "stage": "训练评估"}, {"type": "结构", "title": "第 121 行：结束当前代码块", "desc": "这一行用于结束上一行打开的参数列表、列表、字典或代码块。", "io": "完成当前语法结构", "stage": "训练评估"}, {"type": "结构", "title": "第 122 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "训练评估"}, {"type": "日志", "title": "第 123 行：输出日志", "desc": "通过日志记录当前运行状态，比如设备信息、模型加载成功等。", "io": "输出 INFO 日志", "stage": "训练评估"}, {"type": "训练", "title": "第 124 行：开始训练", "desc": "Trainer 会自动完成前向传播、损失计算、反向传播和参数更新。", "io": "模型参数被更新", "stage": "训练评估"}, {"type": "保存", "title": "第 125 行：保存模型", "desc": "训练完成后保存模型参数和 Tokenizer。", "io": "写入模型目录", "stage": "训练评估"}, {"type": "评估", "title": "第 126 行：评估模型", "desc": "在验证集上输出分类报告和混淆矩阵。", "io": "输出评估结果", "stage": "训练评估"}, {"type": "结构", "title": "第 127 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "训练评估"}, {"type": "方法定义", "title": "第 128 行：定义方法 compute_metrics", "desc": "这里只是定义函数/方法，只有后面真正调用它时，内部代码才会执行。", "io": "注册方法", "stage": "训练评估"}, {"type": "评估", "title": "第 129 行：获取 logits 和标签", "desc": "从评估结果中取出模型输出分数和真实标签。", "io": "输出 logits, labels", "stage": "训练评估"}, {"type": "分类", "title": "第 130 行：选择最大分数类别", "desc": "从 logits 中找出每条样本得分最高的类别索引。", "io": "输出 predictions", "stage": "训练评估"}, {"type": "评估", "title": "第 131 行：计算准确率", "desc": "将预测结果与真实标签逐个比较，再取平均值得到准确率。", "io": "输出 accuracy", "stage": "训练评估"}, {"type": "返回值", "title": "第 132 行：返回评估指标", "desc": "按 Trainer 需要的格式返回 accuracy 指标。", "io": "输出 {'accuracy': accuracy}", "stage": "训练评估"}, {"type": "结构", "title": "第 133 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "训练评估"}, {"type": "方法定义", "title": "第 134 行：定义方法 evaluate_model", "desc": "这里只是定义函数/方法，只有后面真正调用它时，内部代码才会执行。", "io": "注册方法", "stage": "训练评估"}, {"type": "编码", "title": "第 135 行：开始文本编码", "desc": "调用 Tokenizer 把文本转换成 BERT 所需的输入格式。", "io": "输入文本，输出 encodings", "stage": "训练评估"}, {"type": "编码", "title": "第 136 行：开始文本编码", "desc": "调用 Tokenizer 把文本转换成 BERT 所需的输入格式。", "io": "输入文本，输出 encodings", "stage": "训练评估"}, {"type": "Tokenizer参数", "title": "第 137 行：启用截断", "desc": "文本过长时自动截断，避免超过模型最大输入长度。", "io": "限制超长文本", "stage": "训练评估"}, {"type": "Tokenizer参数", "title": "第 138 行：启用补齐", "desc": "把一个 batch 中不同长度的文本补齐到相同长度。", "io": "短文本会补 PAD", "stage": "训练评估"}, {"type": "Tokenizer参数", "title": "第 139 行：设置最大长度", "desc": "每条输入文本最多保留 128 个 Token。", "io": "最大长度=128", "stage": "训练评估"}, {"type": "Tokenizer参数", "title": "第 140 行：返回 PyTorch 张量", "desc": "要求 Tokenizer 输出 torch.Tensor，而不是普通 Python 列表。", "io": "输出 Tensor", "stage": "训练评估"}, {"type": "结构", "title": "第 141 行：结束当前代码块", "desc": "这一行用于结束上一行打开的参数列表、列表、字典或代码块。", "io": "完成当前语法结构", "stage": "训练评估"}, {"type": "Dataset", "title": "第 142 行：创建 Dataset", "desc": "把编码结果和标签封装成 Trainer 可使用的数据集对象。", "io": "输出 Dataset", "stage": "训练评估"}, {"type": "结构", "title": "第 143 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "训练评估"}, {"type": "Trainer", "title": "第 144 行：创建 Trainer", "desc": "把模型、参数、训练集、验证集和指标函数交给 Hugging Face Trainer。", "io": "输出 trainer", "stage": "训练评估"}, {"type": "评估", "title": "第 145 行：执行预测", "desc": "使用当前模型对验证集做批量前向传播。", "io": "输出 predictions", "stage": "训练评估"}, {"type": "分类", "title": "第 146 行：得到预测标签", "desc": "根据 logits 找出每条验证样本的预测类别。", "io": "输出 pred_labels", "stage": "训练评估"}, {"type": "评估", "title": "第 147 行：保存真实标签", "desc": "把真实标签单独保存，便于后续计算分类报告和混淆矩阵。", "io": "输出 true_labels", "stage": "训练评估"}, {"type": "结构", "title": "第 148 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "训练评估"}, {"type": "日志", "title": "第 149 行：输出日志", "desc": "通过日志记录当前运行状态，比如设备信息、模型加载成功等。", "io": "输出 INFO 日志", "stage": "训练评估"}, {"type": "日志", "title": "第 150 行：输出日志", "desc": "通过日志记录当前运行状态，比如设备信息、模型加载成功等。", "io": "输出 INFO 日志", "stage": "训练评估"}, {"type": "执行语句", "title": "第 151 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "true_labels,", "stage": "训练评估"}, {"type": "执行语句", "title": "第 152 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "pred_labels,", "stage": "训练评估"}, {"type": "执行语句", "title": "第 153 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "target_names=[\"通用知识\", \"专业咨询\"]", "stage": "训练评估"}, {"type": "执行语句", "title": "第 154 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "))", "stage": "训练评估"}, {"type": "日志", "title": "第 155 行：输出日志", "desc": "通过日志记录当前运行状态，比如设备信息、模型加载成功等。", "io": "输出 INFO 日志", "stage": "训练评估"}, {"type": "日志", "title": "第 156 行：输出日志", "desc": "通过日志记录当前运行状态，比如设备信息、模型加载成功等。", "io": "输出 INFO 日志", "stage": "训练评估"}, {"type": "结构", "title": "第 157 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "训练评估"}, {"type": "方法定义", "title": "第 158 行：定义方法 predict_category", "desc": "这里只是定义函数/方法，只有后面真正调用它时，内部代码才会执行。", "io": "注册方法", "stage": "训练评估"}, {"type": "判断", "title": "第 159 行：检查模型是否已加载", "desc": "如果模型还没有加载成功，就无法进行正常预测。", "io": "判断 self.model", "stage": "训练评估"}, {"type": "日志", "title": "第 160 行：输出错误日志", "desc": "当模型或数据集不存在时，用错误日志提示问题。", "io": "输出 ERROR 日志", "stage": "训练评估"}, {"type": "执行语句", "title": "第 161 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "return \"通用知识\"", "stage": "训练评估"}, {"type": "结构", "title": "第 162 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "训练评估"}, {"type": "执行语句", "title": "第 163 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "encoding = self.tokenizer(", "stage": "训练评估"}, {"type": "编码", "title": "第 164 行：开始文本编码", "desc": "调用 Tokenizer 把文本转换成 BERT 所需的输入格式。", "io": "输入文本，输出 encodings", "stage": "训练评估"}, {"type": "Tokenizer参数", "title": "第 165 行：启用截断", "desc": "文本过长时自动截断，避免超过模型最大输入长度。", "io": "限制超长文本", "stage": "训练评估"}, {"type": "Tokenizer参数", "title": "第 166 行：启用补齐", "desc": "把一个 batch 中不同长度的文本补齐到相同长度。", "io": "短文本会补 PAD", "stage": "训练评估"}, {"type": "Tokenizer参数", "title": "第 167 行：设置最大长度", "desc": "每条输入文本最多保留 128 个 Token。", "io": "最大长度=128", "stage": "预测输出"}, {"type": "Tokenizer参数", "title": "第 168 行：返回 PyTorch 张量", "desc": "要求 Tokenizer 输出 torch.Tensor，而不是普通 Python 列表。", "io": "输出 Tensor", "stage": "预测输出"}, {"type": "结构", "title": "第 169 行：结束当前代码块", "desc": "这一行用于结束上一行打开的参数列表、列表、字典或代码块。", "io": "完成当前语法结构", "stage": "预测输出"}, {"type": "结构", "title": "第 170 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "预测输出"}, {"type": "设备", "title": "第 171 行：移动到指定设备", "desc": "把模型或张量移动到 self.device，避免设备不一致导致报错。", "io": "对象位于目标设备", "stage": "预测输出"}, {"type": "结构", "title": "第 172 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "预测输出"}, {"type": "推理", "title": "第 173 行：关闭梯度计算", "desc": "预测阶段不需要反向传播，关闭梯度可以节省显存、提高速度。", "io": "进入 no_grad 环境", "stage": "预测输出"}, {"type": "模型推理", "title": "第 174 行：执行模型前向传播", "desc": "把 input_ids、attention_mask 等参数解包后送入 BERT，得到输出结果。", "io": "输出 outputs.logits", "stage": "预测输出"}, {"type": "分类", "title": "第 175 行：得到最终预测标签", "desc": "沿类别维度找最大值，并把张量结果转成普通 Python 整数。", "io": "输出 prediction", "stage": "预测输出"}, {"type": "结构", "title": "第 176 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "预测输出"}, {"type": "返回值", "title": "第 177 行：映射回中文类别", "desc": "如果 prediction 为 1 返回“专业咨询”，否则返回“通用知识”。", "io": "输出中文类别", "stage": "预测输出"}, {"type": "结构", "title": "第 178 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "预测输出"}, {"type": "程序入口", "title": "第 179 行：主程序入口", "desc": "只有直接运行当前文件时，下面的测试代码才会执行。", "io": "判断是否为主程序", "stage": "预测输出"}, {"type": "实例化", "title": "第 180 行：创建分类器对象", "desc": "实例化 QueryClassifier，初始化过程中会自动加载 Tokenizer 和模型。", "io": "输出 classifier", "stage": "预测输出"}, {"type": "执行语句", "title": "第 181 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "model_path=\"bert_query_classifier\"", "stage": "预测输出"}, {"type": "结构", "title": "第 182 行：结束当前代码块", "desc": "这一行用于结束上一行打开的参数列表、列表、字典或代码块。", "io": "完成当前语法结构", "stage": "预测输出"}, {"type": "结构", "title": "第 183 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "预测输出"}, {"type": "测试数据", "title": "第 184 行：定义测试问题列表", "desc": "准备几条待分类的问题，用于测试模型效果。", "io": "输出 test_queries", "stage": "预测输出"}, {"type": "测试数据", "title": "第 185 行：一条测试问题", "desc": "这是准备拿去做分类预测的一条查询。", "io": "AI学科的课程大纲是什么", "stage": "预测输出"}, {"type": "测试数据", "title": "第 186 行：一条测试问题", "desc": "这是准备拿去做分类预测的一条查询。", "io": "JAVA课程费用多少？", "stage": "预测输出"}, {"type": "测试数据", "title": "第 187 行：一条测试问题", "desc": "这是准备拿去做分类预测的一条查询。", "io": "5*9等于多少？", "stage": "预测输出"}, {"type": "执行语句", "title": "第 188 行：执行代码", "desc": "这一行参与当前函数或流程的具体实现，请结合上下文理解。", "io": "\"AI培训有哪些老师？\"", "stage": "预测输出"}, {"type": "结构", "title": "第 189 行：结束当前代码块", "desc": "这一行用于结束上一行打开的参数列表、列表、字典或代码块。", "io": "完成当前语法结构", "stage": "预测输出"}, {"type": "结构", "title": "第 190 行：空行", "desc": "这一行只是为了分隔代码块，提升代码可读性，不会执行任何逻辑。", "io": "无输入，无输出", "stage": "预测输出"}, {"type": "循环", "title": "第 191 行：遍历测试问题", "desc": "逐个取出 test_queries 中的问题，并调用分类器进行预测。", "io": "输出 query", "stage": "预测输出"}, {"type": "预测", "title": "第 192 行：调用预测方法", "desc": "把当前 query 交给 BERT 分类器，得到分类结果。", "io": "输出 category", "stage": "预测输出"}, {"type": "输出", "title": "第 193 行：打印预测结果", "desc": "把原始查询和分类结果一起输出到控制台。", "io": "控制台输出文本", "stage": "预测输出"}];
+
+const codeWrap = document.getElementById("codeWrap");
+const badge = document.getElementById("badge");
+const bar = document.getElementById("bar");
+const count = document.getElementById("count");
+const typeEl = document.getElementById("type");
+const titleEl = document.getElementById("title");
+const descEl = document.getElementById("desc");
+const ioEl = document.getElementById("io");
+const logEl = document.getElementById("log");
+
+const prevBtn = document.getElementById("prev");
+const nextBtn = document.getElementById("next");
+const playBtn = document.getElementById("play");
+const resetBtn = document.getElementById("reset");
+const speedSel = document.getElementById("speed");
+
+function escapeHtml(text) {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+lines.forEach((line, idx) => {
+  const row = document.createElement("div");
+  row.className = "line" + (line.trim().startsWith("#") ? " comment" : "");
+  row.dataset.index = idx;
+  row.innerHTML = `<span class="num">${idx + 1}</span><span class="txt">${escapeHtml(line) || " "}</span>`;
+  codeWrap.appendChild(row);
+});
+
+let current = -1;
+let timer = null;
+
+function updateStage(stageName) {
+  document.querySelectorAll(".node").forEach(node => {
+    node.classList.toggle("active", node.dataset.stage === stageName);
+  });
+}
+
+function render(index) {
+  if (index < 0) index = 0;
+  if (index >= lines.length) index = lines.length - 1;
+  current = index;
+
+  document.querySelectorAll(".line").forEach((row, i) => {
+    row.classList.toggle("active", i === current);
+  });
+
+  const activeRow = document.querySelector(`.line[data-index="${current}"]`);
+  if (activeRow) {
+    const containerRect = codeWrap.getBoundingClientRect();
+    const rowRect = activeRow.getBoundingClientRect();
+    const delta =
+      rowRect.top
+      - containerRect.top
+      - (codeWrap.clientHeight / 2)
+      + (activeRow.clientHeight / 2);
+
+    codeWrap.scrollTo({
+      top: Math.max(0, codeWrap.scrollTop + delta),
+      behavior: "smooth"
+    });
+  }
+
+  const e = explainData[current];
+
+  badge.textContent = `第 ${current + 1} 行`;
+  bar.style.width = `${((current + 1) / lines.length) * 100}%`;
+  count.textContent = `${current + 1}/${lines.length}`;
+
+  typeEl.textContent = e.type;
+  titleEl.textContent = e.title;
+  descEl.textContent = e.desc;
+  ioEl.textContent = "输入 / 输出：" + e.io;
+
+  updateStage(e.stage);
+
+  // 日志不再增量追加，而是严格按照当前索引重新生成。
+  // 这样左侧当前行、顶部行号和日志最后一条始终完全一致。
+  const logFragment = document.createDocumentFragment();
+
+  for (let i = 0; i <= current; i++) {
+    const itemExplain = explainData[i];
+    const logItem = document.createElement("div");
+
+    logItem.dataset.line = String(i + 1);
+    logItem.textContent =
+      `[第${i + 1}行] ${itemExplain.title} —— ${itemExplain.desc}`;
+
+    if (i === current) {
+      logItem.classList.add("current-log-line");
+    }
+
+    logFragment.appendChild(logItem);
+  }
+
+  logEl.replaceChildren(logFragment);
+
+  // 等待浏览器完成日志布局后，再滚动到真正的最后一条。
+  requestAnimationFrame(() => {
+    const currentLogLine = logEl.querySelector(".current-log-line");
+
+    if (currentLogLine) {
+      currentLogLine.scrollIntoView({
+        block: "end",
+        inline: "nearest"
+      });
+    }
+
+    logEl.scrollTop = logEl.scrollHeight;
+  });
+
+  prevBtn.disabled = current === 0;
+  nextBtn.disabled = current === lines.length - 1;
+}
+
+function nextStep() {
+  if (current < lines.length - 1) {
+    render(current + 1);
+  } else {
+    stopPlay();
+  }
+}
+
+function prevStep() {
+  if (current > 0) {
+    render(current - 1);
+  }
+}
+
+function startPlay() {
+  if (timer) {
+    stopPlay();
+    return;
+  }
+  if (current === lines.length - 1) {
+    resetAll();
+  }
+  if (current < 0) {
+    render(0);
+  }
+  playBtn.textContent = "暂停播放";
+  timer = setInterval(() => {
+    if (current >= lines.length - 1) {
+      stopPlay();
+      return;
+    }
+    render(current + 1);
+  }, Number(speedSel.value));
+}
+
+function stopPlay() {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+  playBtn.textContent = "自动播放";
+}
+
+function resetAll() {
+  stopPlay();
+  current = -1;
+  document.querySelectorAll(".line").forEach(row => row.classList.remove("active"));
+  document.querySelectorAll(".node").forEach(node => node.classList.remove("active"));
+  badge.textContent = "等待开始";
+  bar.style.width = "0%";
+  count.textContent = `0/${lines.length}`;
+  typeEl.textContent = "准备";
+  titleEl.textContent = "点击“自动播放”或“下一行”";
+  descEl.textContent = "动画会从第一行开始，逐行解释代码，并持续往下播放，不会卡在中间。";
+  ioEl.textContent = "输入 / 输出：等待执行";
+  logEl.innerHTML = "";
+  prevBtn.disabled = true;
+  nextBtn.disabled = false;
+  codeWrap.scrollTop = 0;
+}
+
+prevBtn.addEventListener("click", prevStep);
+nextBtn.addEventListener("click", nextStep);
+playBtn.addEventListener("click", startPlay);
+resetBtn.addEventListener("click", resetAll);
+speedSel.addEventListener("change", () => {
+  if (timer) {
+    stopPlay();
+    startPlay();
+  }
+});
+
+window.scrollTo(0, 0);
+
+
+
+
+
+
+
+
+
+resetAll();
+</script>
+</body>
+</html>

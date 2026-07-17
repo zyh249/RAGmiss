@@ -232,6 +232,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 rag_qa_path = os.path.abspath(os.path.dirname(os.path.abspath(current_dir)))
 project_root = os.path.abspath(os.path.dirname(os.path.abspath(rag_qa_path)))
 sys.path.insert(0, project_root)
+sys.path.insert(0, rag_qa_path)
 ```
 
 ## 作用
@@ -1357,6 +1358,8 @@ training_args = TrainingArguments(
 ```
 
 参数解释：
+
+注意：虽然我们本次在训练参数时，没有指定学习率，但是它有默认值为5e-5
 
 | 参数 | 含义 |
 |---|---|

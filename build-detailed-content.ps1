@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $siteRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectRoot = Split-Path -Parent $siteRoot
@@ -87,9 +87,9 @@ $sourceCards = foreach ($file in $sourceFiles) {
 @"
         <article class="source-file-card">
           <h3>$([System.Net.WebUtility]::HtmlEncode($relative))</h3>
-          <p class="detail-meta">source file · $size</p>
+          <p class="detail-meta">源码文件 · $size</p>
           <details>
-            <summary>Open full source</summary>
+            <summary>展开完整源码</summary>
             <pre class="detail-code"><code>$content</code></pre>
           </details>
         </article>
@@ -110,19 +110,19 @@ $extensionCards = foreach ($item in $extensionFiles) {
   $ext = $file.Extension.ToLowerInvariant()
 
   if ($ext -in @(".md", ".txt")) {
-    $body = '<details open><summary>Open full text</summary><pre class="detail-code"><code>' + (HtmlEncode (ReadTextFile $file.FullName)) + '</code></pre></details>'
+    $body = '<details open><summary>展开完整文本</summary><pre class="detail-code"><code>' + (HtmlEncode (ReadTextFile $file.FullName)) + '</code></pre></details>'
   } elseif ($ext -eq ".html") {
-    $body = '<p>This interactive HTML extension has been copied into the site assets. Preview it below or open it separately.</p><p><a class="open-resource" href="' + $assetUrl + '" target="_blank" rel="noopener">Open original HTML resource</a></p><iframe class="extension-frame" src="' + $assetUrl + '" title="' + (HtmlEncode $relative) + '"></iframe>'
+    $body = '<div class="extension-intro"><p>这是一个可交互的 HTML 扩展演示，已经复制到网站资源目录。下面提供宽屏预览；如果预览区域仍然放不下，建议点击按钮单独打开。</p><a class="open-resource" href="' + $assetUrl + '" target="_blank" rel="noopener">单独打开演示页面</a></div><div class="extension-preview"><iframe class="extension-frame" src="' + $assetUrl + '" title="' + (HtmlEncode $relative) + '" loading="lazy"></iframe></div>'
   } elseif ($ext -in @(".png", ".jpg", ".jpeg", ".webp", ".gif")) {
-    $body = '<p>This diagram or screenshot resource has been copied into the site assets.</p><img class="extension-image" src="' + $assetUrl + '" alt="' + (HtmlEncode $relative) + '">'
+    $body = '<p>这是扩展资料中的图例或截图，已经复制到网站资源目录。</p><img class="extension-image" src="' + $assetUrl + '" alt="' + (HtmlEncode $relative) + '">'
   } else {
-    $body = '<p><a class="open-resource" href="' + $assetUrl + '" target="_blank" rel="noopener">Open extension resource</a></p>'
+    $body = '<p><a class="open-resource" href="' + $assetUrl + '" target="_blank" rel="noopener">打开扩展资源</a></p>'
   }
 
 @"
         <article class="extension-file-card">
           <h3>$([System.Net.WebUtility]::HtmlEncode("$day/$relative"))</h3>
-          <p class="detail-meta">extension file · $size · $ext</p>
+          <p class="detail-meta">扩展文件 · $size · $ext</p>
           $body
         </article>
 "@
@@ -138,20 +138,20 @@ $html = @"
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EduRAG Full Code and Extension Library</title>
+  <title>EduRAG 源码全文与扩展资料库</title>
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="detail-page">
   <header class="site-header">
     <div class="brand-block">
-      <p class="eyebrow">Deep Reference</p>
-      <h1>EduRAG Full Code and Extension Library</h1>
-      <p class="lead">This page fills in the complete project source files and every day02-day07 extension resource. Generated at: $generatedAt</p>
+      <p class="eyebrow">完整参考资料</p>
+      <h1>EduRAG 源码全文与扩展资料库</h1>
+      <p class="lead">这里集中整理完整项目源码，以及 day02 到 day07 的所有扩展资料、动画演示和图例。生成时间：$generatedAt</p>
     </div>
     <nav class="top-tabs" aria-label="详细资料导航">
-      <a class="tab-link" href="index.html">Back to learning path</a>
-      <a class="tab-link" href="#full-code-library">Full Code Library</a>
-      <a class="tab-link" href="#extension-library">Extension Library</a>
+      <a class="tab-link" href="index.html">返回学习路线</a>
+      <a class="tab-link" href="#full-code-library">源码全文</a>
+      <a class="tab-link" href="#extension-library">扩展资料库</a>
     </nav>
   </header>
 
@@ -159,29 +159,29 @@ $html = @"
     <section class="detail-summary">
       <article>
         <strong>$sourceCount</strong>
-        <span>source/config/page text files</span>
+        <span>源码、配置和页面文件</span>
       </article>
       <article>
         <strong>$extensionCount</strong>
-        <span>extension resources</span>
+        <span>扩展资料文件</span>
       </article>
       <article>
         <strong>day02-day07</strong>
-        <span>daily extension content cataloged</span>
+        <span>每日扩展内容已归档</span>
       </article>
     </section>
 
     <section id="full-code-library" class="detail-section">
-      <h2>Full Code Library</h2>
-      <p class="muted">The files below come from the completed <code>integrated_qa_system</code> source tree and are sorted by path. Open any item to read the full file content.</p>
+      <h2>源码全文</h2>
+      <p class="muted">下面的文件来自完整项目 <code>integrated_qa_system</code>，按照路径排序。展开任意文件即可阅读完整内容。</p>
       <div class="detail-grid">
 $($sourceCards -join "`n")
       </div>
     </section>
 
     <section id="extension-library" class="detail-section">
-      <h2>Extension Library</h2>
-      <p class="muted">The resources below come from day02-day07 extension folders. Markdown/TXT files show full text. HTML animations and image diagrams are copied into the site assets and previewed here.</p>
+      <h2>扩展资料库</h2>
+      <p class="muted">下面的资源来自 day02 到 day07 的扩展文件夹。Markdown 和 TXT 会直接展示全文；HTML 动画和图片图例已复制到网站资源目录，并在页面中提供预览和单独打开入口。</p>
       <div class="detail-grid">
 $($extensionCards -join "`n")
       </div>
@@ -195,3 +195,4 @@ $($extensionCards -join "`n")
 
 Set-Content -Path (Join-Path $siteRoot "details.html") -Value $html -Encoding UTF8
 Write-Host "Generated details.html with $sourceCount source files and $extensionCount extension files."
+

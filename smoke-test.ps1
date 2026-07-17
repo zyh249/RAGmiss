@@ -1,4 +1,4 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $index = Join-Path $root "index.html"
@@ -33,8 +33,13 @@ $requiredHtml = @(
 )
 
 $requiredDetails = @(
-  "Full Code Library",
-  "Extension Library",
+  "EduRAG 源码全文与扩展资料库",
+  "返回学习路线",
+  "源码全文",
+  "扩展资料库",
+  "单独打开演示页面",
+  "extension-preview",
+  'loading="lazy"',
   "app.py",
   "new_main.py",
   "mysql_qa/retrieval/bm25_search.py",
@@ -58,6 +63,13 @@ foreach ($pattern in $requiredDetails) {
   }
 }
 
+$removedEnglishDetails = @("Full Code Library", "Extension Library", "Back to learning path", "Open original HTML resource")
+foreach ($pattern in $removedEnglishDetails) {
+  if ($detailHtml -like "*$pattern*") {
+    throw "details.html still contains old English label: $pattern"
+  }
+}
+
 $sourceFileCount = ([regex]::Matches($detailHtml, 'class="source-file-card"')).Count
 if ($sourceFileCount -lt 20) {
   throw "details.html source file count too low: $sourceFileCount"
@@ -68,7 +80,7 @@ if ($extensionFileCount -lt 40) {
   throw "details.html extension file count too low: $extensionFileCount"
 }
 
-$requiredCss = @(".app-shell", ".day-card", ".flow-map", ".module-card", ".glossary-card", "@media")
+$requiredCss = @(".app-shell", ".day-card", ".flow-map", ".module-card", ".glossary-card", ".detail-page", ".extension-intro", ".extension-preview", "@media")
 foreach ($pattern in $requiredCss) {
   if ($styles -notlike "*$pattern*") {
     throw "styles.css missing pattern: $pattern"
@@ -90,3 +102,4 @@ foreach ($pattern in $externalRefs) {
 }
 
 Write-Host "Smoke test passed: static EduRAG learning site files look complete."
+

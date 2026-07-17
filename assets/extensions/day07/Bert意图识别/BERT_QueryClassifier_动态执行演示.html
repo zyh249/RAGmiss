@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BERT 查询分类器动态执行演示</title>
+<style>
+:root{
+  --bg:#07111f;
+  --panel:#0c1a2b;
+  --panel2:#102238;
+  --line:#24415f;
+  --text:#e7f1ff;
+  --muted:#8fa8c2;
+  --accent:#4cc9f0;
+  --accent2:#8b5cf6;
+  --good:#34d399;
+  --warn:#fbbf24;
+  --danger:#fb7185;
+  --code:#08131f;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  min-height:100vh;
+  font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif;
+  color:var(--text);
+  background:
+    radial-gradient(circle at 15% 20%,rgba(76,201,240,.12),transparent 30%),
+    radial-gradient(circle at 85% 10%,rgba(139,92,246,.14),transparent 32%),
+    linear-gradient(135deg,#050b14,#091725 55%,#07111f);
+}
+header{
+  height:72px;
+  padding:0 24px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  border-bottom:1px solid rgba(143,168,194,.18);
+  background:rgba(5,11,20,.78);
+  backdrop-filter:blur(12px);
+  position:sticky;top:0;z-index:30;
+}
+.title h1{font-size:22px;margin:0 0 5px}
+.title p{font-size:12px;color:var(--muted);margin:0}
+.controls{display:flex;gap:10px;align-items:center}
+button{
+  border:1px solid rgba(76,201,240,.35);
+  background:#0e2438;
+  color:var(--text);
+  padding:9px 14px;
+  border-radius:9px;
+  cursor:pointer;
+  font-weight:700;
+}
+button:hover{background:#15324b}
+button.primary{background:linear-gradient(135deg,#2563eb,#7c3aed);border:none}
+button:disabled{opacity:.45;cursor:not-allowed}
+.speed{
+  display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px
+}
+select{
+  background:#0e2438;color:var(--text);border:1px solid var(--line);
+  border-radius:8px;padding:8px
+}
+main{
+  display:grid;
+  grid-template-columns:minmax(430px,46%) minmax(560px,54%);
+  height:calc(100vh - 72px);
+}
+.left{
+  border-right:1px solid rgba(143,168,194,.18);
+  display:flex;
+  flex-direction:column;
+  min-width:0;
+}
+.panel-head{
+  height:52px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 18px;
+  background:rgba(12,26,43,.72);
+  border-bottom:1px solid rgba(143,168,194,.16);
+}
+.panel-head strong{font-size:14px}
+.badge{
+  font-size:11px;color:#bfefff;background:rgba(76,201,240,.12);
+  border:1px solid rgba(76,201,240,.25);padding:4px 8px;border-radius:999px
+}
+.code-wrap{
+  flex:1;
+  overflow:auto;
+  background:var(--code);
+  padding:14px 0 40px;
+}
+.code-line{
+  display:grid;
+  grid-template-columns:52px 1fr;
+  min-height:24px;
+  align-items:start;
+  padding:1px 16px 1px 0;
+  border-left:3px solid transparent;
+  transition:.25s;
+}
+.code-line .num{
+  color:#46627e;text-align:right;padding-right:14px;
+  user-select:none;font:12px/22px Consolas,monospace
+}
+.code-line .txt{
+  white-space:pre;
+  color:#c7dcf2;
+  font:13px/22px Consolas,"Courier New",monospace
+}
+.code-line.active{
+  background:linear-gradient(90deg,rgba(76,201,240,.22),rgba(76,201,240,.04));
+  border-left-color:var(--accent);
+  box-shadow:inset 0 0 20px rgba(76,201,240,.05);
+}
+.code-line.active .txt{color:#fff}
+.kw{color:#c084fc}.fn{color:#67e8f9}.str{color:#86efac}.cm{color:#6b8299}.numlit{color:#fbbf24}
+.right{
+  overflow:auto;
+  padding:18px;
+}
+.stepbar{
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  gap:8px;
+  margin-bottom:14px;
+}
+.step{
+  min-height:58px;
+  border:1px solid rgba(143,168,194,.15);
+  background:rgba(12,26,43,.72);
+  border-radius:10px;
+  padding:8px;
+  color:#69839c;
+  transition:.25s;
+}
+.step .n{
+  width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  background:#142a41;font-size:11px;margin-bottom:4px
+}
+.step span{font-size:11px;font-weight:700}
+.step.active{
+  color:#fff;border-color:rgba(76,201,240,.55);
+  background:linear-gradient(135deg,rgba(76,201,240,.18),rgba(139,92,246,.15));
+  transform:translateY(-2px)
+}
+.dashboard{
+  display:grid;
+  grid-template-columns:1.15fr .85fr;
+  gap:14px;
+}
+.card{
+  background:rgba(12,26,43,.84);
+  border:1px solid rgba(143,168,194,.16);
+  border-radius:14px;
+  padding:16px;
+  box-shadow:0 14px 34px rgba(0,0,0,.18);
+}
+.card h3{
+  margin:0 0 12px;font-size:14px;display:flex;align-items:center;gap:8px
+}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px var(--accent)}
+.flow-card{grid-column:1/-1}
+.flow{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:132px
+}
+.node{
+  width:126px;min-height:86px;border-radius:12px;border:1px solid var(--line);
+  background:linear-gradient(160deg,#10263d,#0a1726);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:9px;position:relative;transition:.3s;
+}
+.node .icon{font-size:24px;margin-bottom:5px}
+.node b{font-size:12px}.node small{font-size:10px;color:var(--muted);margin-top:4px}
+.node.active{
+  border-color:var(--accent);
+  transform:scale(1.05);
+  box-shadow:0 0 24px rgba(76,201,240,.28);
+}
+.arrow{
+  flex:1;height:2px;background:#26445f;position:relative;overflow:hidden;min-width:24px
+}
+.arrow:after{
+  content:"";position:absolute;right:-1px;top:-4px;border-left:8px solid #26445f;
+  border-top:5px solid transparent;border-bottom:5px solid transparent
+}
+.arrow.active{
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  background-size:180% 100%;
+  animation:move 1s linear infinite;
+}
+.arrow.active:after{border-left-color:var(--accent)}
+@keyframes move{to{background-position:-180% 0}}
+.query-box{
+  padding:12px;border:1px solid #294761;border-radius:10px;background:#091624;
+  font-size:14px;margin-bottom:12px
+}
+.tokens{display:flex;flex-wrap:wrap;gap:7px;min-height:48px}
+.token{
+  opacity:0;transform:translateY(10px);
+  padding:6px 8px;border-radius:7px;background:#16314d;border:1px solid #315a7e;
+  font:12px Consolas,monospace;animation:pop .35s forwards
+}
+.token.special{background:#3a235d;border-color:#7650a8}
+@keyframes pop{to{opacity:1;transform:none}}
+.tensor{
+  font:12px/1.7 Consolas,monospace;color:#c9def3;
+  background:#08131f;border-radius:10px;padding:12px;min-height:154px;
+  white-space:pre-wrap
+}
+.device{
+  display:flex;gap:10px;margin-bottom:10px
+}
+.devbox{
+  flex:1;padding:11px;border:1px solid var(--line);border-radius:10px;text-align:center;
+  color:#6d87a0;transition:.25s
+}
+.devbox.active{color:#fff;border-color:var(--good);box-shadow:0 0 18px rgba(52,211,153,.18)}
+.log{
+  min-height:106px;max-height:160px;overflow:auto;
+  background:#08131f;border-radius:10px;padding:10px;font:11px/1.6 Consolas,monospace
+}
+.log div{color:#93a9bf}.log .ok{color:#7bf1c6}.log .info{color:#7ddcf7}
+.explain{
+  grid-column:1/-1;
+  min-height:124px;
+  border-left:4px solid var(--accent);
+}
+.explain h2{font-size:18px;margin:0 0 8px}
+.explain p{color:#b4c7d9;font-size:13px;line-height:1.75;margin:0}
+.prediction{
+  display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px
+}
+.classbar{
+  border:1px solid var(--line);border-radius:10px;padding:10px
+}
+.classbar .top{display:flex;justify-content:space-between;font-size:12px}
+.track{height:7px;background:#14283c;border-radius:999px;margin-top:8px;overflow:hidden}
+.fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .8s}
+.result{
+  margin-top:12px;padding:12px;border-radius:10px;text-align:center;
+  background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);
+  color:#9ef2d4;font-weight:800;opacity:.35;transition:.3s
+}
+.result.show{opacity:1;box-shadow:0 0 24px rgba(52,211,153,.12)}
+.progress{
+  height:4px;background:#10263b;position:fixed;left:0;right:0;bottom:0;z-index:40
+}
+.progress div{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .25s}
+@media(max-width:1050px){
+  main{grid-template-columns:1fr;height:auto}
+  .left{height:650px;border-right:none;border-bottom:1px solid rgba(143,168,194,.18)}
+  .right{overflow:visible}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="title">
+    <h1>BERT QueryClassifier 动态执行演示</h1>
+    <p>左侧代码逐行高亮 · 右侧同步展示数据、模型与分类结果</p>
+  </div>
+  <div class="controls">
+    <button id="prev">上一步</button>
+    <button id="play" class="primary">自动播放</button>
+    <button id="next">下一步</button>
+    <button id="reset">重置</button>
+    <label class="speed">速度
+      <select id="speed">
+        <option value="2600">慢速</option>
+        <option value="1700" selected>正常</option>
+        <option value="950">快速</option>
+      </select>
+    </label>
+  </div>
+</header>
+
+<main>
+  <section class="left">
+    <div class="panel-head">
+      <strong>query_classifier.py</strong>
+      <span class="badge" id="lineBadge">等待执行</span>
+    </div>
+    <div class="code-wrap" id="code"></div>
+  </section>
+
+  <section class="right">
+    <div class="stepbar" id="stepbar"></div>
+
+    <div class="dashboard">
+      <div class="card flow-card">
+        <h3><span class="dot"></span>整体执行流程</h3>
+        <div class="flow">
+          <div class="node" data-node="init"><div class="icon">⚙️</div><b>初始化分类器</b><small>路径、设备、标签</small></div>
+          <div class="arrow" data-arrow="init"></div>
+          <div class="node" data-node="load"><div class="icon">📦</div><b>加载模型</b><small>Tokenizer + BERT</small></div>
+          <div class="arrow" data-arrow="load"></div>
+          <div class="node" data-node="tokenize"><div class="icon">🔤</div><b>文本数字化</b><small>input_ids 等</small></div>
+          <div class="arrow" data-arrow="tokenize"></div>
+          <div class="node" data-node="forward"><div class="icon">🧠</div><b>BERT 前向传播</b><small>输出 logits</small></div>
+          <div class="arrow" data-arrow="forward"></div>
+          <div class="node" data-node="result"><div class="icon">🏷️</div><b>输出类别</b><small>通用 / 专业</small></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3><span class="dot"></span>输入与 Tokenizer</h3>
+        <div class="query-box">用户问题：<b>AI大模型课程主要学什么</b></div>
+        <div class="tokens" id="tokens"></div>
+      </div>
+
+      <div class="card">
+        <h3><span class="dot"></span>运行设备与日志</h3>
+        <div class="device">
+          <div class="devbox" id="cpu">CPU</div>
+          <div class="devbox active" id="gpu">CUDA / GPU</div>
+        </div>
+        <div class="log" id="log"></div>
+      </div>
+
+      <div class="card">
+        <h3><span class="dot"></span>模型输入张量</h3>
+        <div class="tensor" id="tensor">等待 Tokenizer 处理...</div>
+      </div>
+
+      <div class="card">
+        <h3><span class="dot"></span>分类概率与结果</h3>
+        <div class="prediction">
+          <div class="classbar">
+            <div class="top"><span>通用知识</span><span id="p0">0%</span></div>
+            <div class="track"><div class="fill" id="f0"></div></div>
+          </div>
+          <div class="classbar">
+            <div class="top"><span>专业咨询</span><span id="p1">0%</span></div>
+            <div class="track"><div class="fill" id="f1"></div></div>
+          </div>
+        </div>
+        <div class="result" id="result">预测结果：专业咨询</div>
+      </div>
+
+      <div class="card explain">
+        <h2 id="explainTitle">准备开始</h2>
+        <p id="explainText">点击“自动播放”或“下一步”，观察 QueryClassifier 从初始化到输出分类结果的完整过程。</p>
+      </div>
+    </div>
+  </section>
+</main>
+<div class="progress"><div id="progress"></div></div>
+
+<script>
+const codeText = `# 1. 导入依赖包
+import json
+import os
+import sys
+import torch
+import numpy as np
+from transformers import BertTokenizer, BertForSequenceClassification
+from transformers import Trainer, TrainingArguments
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
+
+# 2. 处理项目路径
+current_dir = os.path.dirname(os.path.abspath(__file__))
+rag_qa_path = os.path.dirname(current_dir)
+sys.path.insert(0, rag_qa_path)
+project_root = os.path.dirname(rag_qa_path)
+sys.path.insert(0, project_root)
+model_dir_path = os.path.join(rag_qa_path, "models")
+
+# 3. 定义 QueryClassifier 类
+class QueryClassifier:
+    def __init__(self, model_path=f"{model_dir_path}/bert_query_classifier"):
+        self.pre_trained_model_path = f"{model_dir_path}/bert-base-chinese"
+        self.model_path = model_path
+        self.tokenizer = BertTokenizer.from_pretrained(self.pre_trained_model_path)
+        self.model = None
+        self.device = torch.device(
+            "cuda" if torch.cuda.is_available()
+            else "mps" if torch.mps.is_available()
+            else "cpu"
+        )
+        self.logger = setup_logger("QueryClassifier")
+        self.label_map = {"通用知识": 0, "专业咨询": 1}
+        self.load_model()
+
+    def load_model(self):
+        if os.path.exists(self.model_path):
+            self.model = BertForSequenceClassification.from_pretrained(self.model_path)
+        else:
+            self.model = BertForSequenceClassification.from_pretrained(
+                self.pre_trained_model_path,
+                num_labels=len(self.label_map)
+            )
+        self.model.to(self.device)
+
+    def predict_category(self, query):
+        encoding = self.tokenizer(
+            query,
+            truncation=True,
+            padding=True,
+            max_length=128,
+            return_tensors="pt"
+        )
+        encoding = {k: v.to(self.device) for k, v in encoding.items()}
+
+        with torch.no_grad():
+            outputs = self.model(**encoding)
+            prediction = torch.argmax(outputs.logits, dim=1).item()
+
+        return "专业咨询" if prediction == 1 else "通用知识"
+
+if __name__ == "__main__":
+    query_classifier = QueryClassifier()
+    print(query_classifier.predict_category("AI大模型课程主要学什么"))`;
+
+const stages = [
+  {
+    name:"导入依赖", lines:[1,10], node:"init",
+    title:"第一步：加载项目依赖",
+    text:"导入 PyTorch、Transformers、NumPy 和 sklearn。PyTorch 负责张量计算，Transformers 提供 BERT 分词器与分类模型，sklearn 用于训练集划分和评估。",
+    log:["INFO 导入 torch 与 transformers","INFO 准备 BERT 文本分类环境"]
+  },
+  {
+    name:"处理路径", lines:[12,18], node:"init",
+    title:"第二步：确定模型路径",
+    text:"通过当前文件位置逐级找到 rag_qa 和 models 目录。模型路径用于加载 bert-base-chinese 预训练模型，以及读取训练后保存的 bert_query_classifier。",
+    log:["INFO current_dir = rag_qa/core","INFO model_dir_path = rag_qa/models"]
+  },
+  {
+    name:"初始化对象", lines:[20,35], node:"load",
+    title:"第三步：初始化 QueryClassifier",
+    text:"创建分类器对象，加载 Tokenizer，选择 CUDA、MPS 或 CPU 设备，并建立标签映射：通用知识为 0，专业咨询为 1。",
+    log:["INFO Using device: cuda","INFO label_map = {'通用知识': 0, '专业咨询': 1}"]
+  },
+  {
+    name:"加载模型", lines:[37,46], node:"load",
+    title:"第四步：加载已训练的分类模型",
+    text:"如果 bert_query_classifier 已存在，就加载微调后的模型；否则加载原始 bert-base-chinese，并设置 num_labels=2。随后把模型移动到运行设备。",
+    log:["INFO 检测到已训练模型","OK 模型已加载到 CUDA"]
+  },
+  {
+    name:"文本编码", lines:[48,57], node:"tokenize",
+    title:"第五步：Tokenizer 将文本转换成数字",
+    text:"原始中文问题不能直接进入 BERT。Tokenizer 会添加 [CLS]、[SEP]，并生成 input_ids、attention_mask 和 token_type_ids 三组张量。",
+    log:["INFO 输入问题：AI大模型课程主要学什么","OK Tokenizer 编码完成"]
+  },
+  {
+    name:"模型预测", lines:[58,65], node:"forward",
+    title:"第六步：执行 BERT 前向传播",
+    text:"encoding 先移动到同一设备，再通过 **encoding 解包传入模型。torch.no_grad() 表示预测阶段不计算梯度，从而减少内存占用并提高速度。",
+    log:["INFO encoding 已移动到 CUDA","INFO outputs.logits = [[-1.62, 3.48]]"]
+  },
+  {
+    name:"输出结果", lines:[67,71], node:"result",
+    title:"第七步：根据最大 Logit 输出分类",
+    text:"torch.argmax(..., dim=1) 沿类别维度寻找最大值。专业咨询对应索引 1，因此最终返回“专业咨询”。",
+    log:["INFO prediction = 1","OK 预测结果：专业咨询"]
+  }
+];
+
+const codeEl=document.getElementById("code");
+const escapeHtml = (s) => s
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#039;");
+
+/*
+ * 只负责HTML转义，不再使用多轮正则替换生成span标签。
+ * 原来的实现会把已经生成的 class="cm"、class="str"
+ * 再次匹配成字符串，从而破坏HTML结构。
+ */
+function highlight(s) {
+  return escapeHtml(s);
+}
+codeText.split("\n").forEach((line,i)=>{
+  const div=document.createElement("div");
+  div.className="code-line";
+  div.dataset.line=i+1;
+  div.innerHTML=`<span class="num">${i+1}</span><span class="txt">${highlight(line)||" "}</span>`;
+  codeEl.appendChild(div);
+});
+
+const stepbar=document.getElementById("stepbar");
+stages.forEach((s,i)=>{
+  const d=document.createElement("div");
+  d.className="step";
+  d.innerHTML=`<div class="n">${i+1}</div><span>${s.name}</span>`;
+  stepbar.appendChild(d);
+});
+
+let current=-1, timer=null;
+const lineBadge=document.getElementById("lineBadge");
+const log=document.getElementById("log");
+const tensor=document.getElementById("tensor");
+const tokens=document.getElementById("tokens");
+const title=document.getElementById("explainTitle");
+const text=document.getElementById("explainText");
+const result=document.getElementById("result");
+const progress=document.getElementById("progress");
+
+function addLog(messages){
+  messages.forEach(m=>{
+    const d=document.createElement("div");
+    d.className=m.startsWith("OK")?"ok":"info";
+    d.textContent=`[${new Date().toLocaleTimeString()}] ${m}`;
+    log.appendChild(d);
+  });
+  log.scrollTop=log.scrollHeight;
+}
+function clearVisual(){
+  document.querySelectorAll(".code-line").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".step").forEach(x=>x.classList.remove("active"));
+  document.querySelectorAll(".node,.arrow").forEach(x=>x.classList.remove("active"));
+}
+function showTokens(){
+  tokens.innerHTML="";
+  const arr=["[CLS]","AI","大","模","型","课","程","主","要","学","什","么","[SEP]"];
+  arr.forEach((t,i)=>{
+    const e=document.createElement("span");
+    e.className="token"+(t.startsWith("[")?" special":"");
+    e.style.animationDelay=(i*.06)+"s";
+    e.textContent=t;
+    tokens.appendChild(e);
+  });
+}
+function renderStage(index){
+  current=Math.max(0,Math.min(index,stages.length-1));
+  clearVisual();
+  const s=stages[current];
+  document.querySelectorAll(".step")[current].classList.add("active");
+  document.querySelectorAll(".code-line").forEach(el=>{
+    const n=+el.dataset.line;
+    if(n>=s.lines[0]&&n<=s.lines[1]) el.classList.add("active");
+  });
+  const first=document.querySelector(`.code-line[data-line="${s.lines[0]}"]`);
+  first?.scrollIntoView({behavior:"smooth",block:"center"});
+  lineBadge.textContent=`第 ${s.lines[0]}–${s.lines[1]} 行`;
+  title.textContent=s.title;
+  text.textContent=s.text;
+  document.querySelector(`[data-node="${s.node}"]`)?.classList.add("active");
+
+  const order=["init","load","tokenize","forward","result"];
+  const pos=order.indexOf(s.node);
+  order.slice(0,pos).forEach(n=>{
+    document.querySelector(`[data-arrow="${n}"]`)?.classList.add("active");
+  });
+
+  if(current>=4){
+    showTokens();
+    tensor.textContent=`input_ids:\n[[101, 8724, 1920, 3563, 1798, 6440, 4923, 712, 6206, 2110, 784, 720, 102]]\n\nattention_mask:\n[[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]]\n\nshape: torch.Size([1, 13])`;
+  }
+  if(current>=5){
+    document.getElementById("p0").textContent="0.6%";
+    document.getElementById("p1").textContent="99.4%";
+    document.getElementById("f0").style.width="0.6%";
+    document.getElementById("f1").style.width="99.4%";
+  } else {
+    document.getElementById("p0").textContent="0%";
+    document.getElementById("p1").textContent="0%";
+    document.getElementById("f0").style.width="0";
+    document.getElementById("f1").style.width="0";
+  }
+  result.classList.toggle("show",current===6);
+  addLog(s.log);
+  progress.style.width=((current+1)/stages.length*100)+"%";
+  document.getElementById("prev").disabled=current===0;
+  document.getElementById("next").disabled=current===stages.length-1;
+}
+
+function next(){
+  if(current<stages.length-1) renderStage(current+1);
+  else stop();
+}
+function prev(){ if(current>0) renderStage(current-1); }
+function play(){
+  if(timer){stop();return}
+  document.getElementById("play").textContent="暂停播放";
+  if(current===stages.length-1) reset();
+  if(current<0) next();
+  timer=setInterval(next,+document.getElementById("speed").value);
+}
+function stop(){
+  clearInterval(timer);timer=null;
+  document.getElementById("play").textContent="自动播放";
+}
+function reset(){
+  stop();current=-1;clearVisual();
+  lineBadge.textContent="等待执行";
+  title.textContent="准备开始";
+  text.textContent="点击“自动播放”或“下一步”，观察 QueryClassifier 从初始化到输出分类结果的完整过程。";
+  tokens.innerHTML="";
+  tensor.textContent="等待 Tokenizer 处理...";
+  log.innerHTML="";
+  result.classList.remove("show");
+  ["f0","f1"].forEach(id=>document.getElementById(id).style.width="0");
+  ["p0","p1"].forEach(id=>document.getElementById(id).textContent="0%");
+  progress.style.width="0";
+  document.getElementById("prev").disabled=true;
+  document.getElementById("next").disabled=false;
+  codeEl.scrollTop=0;
+}
+document.getElementById("play").onclick=play;
+document.getElementById("next").onclick=next;
+document.getElementById("prev").onclick=prev;
+document.getElementById("reset").onclick=reset;
+document.getElementById("speed").onchange=()=>{if(timer){stop();play()}};
+reset();
+</script>
+</body>
+</html>
