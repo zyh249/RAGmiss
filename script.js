@@ -3,6 +3,7 @@ const panels = document.querySelectorAll(".tab-panel");
 const dayToggles = document.querySelectorAll(".day-toggle");
 const flowNodes = document.querySelectorAll(".flow-node[data-target]");
 const glossarySearch = document.querySelector("#glossarySearch");
+const detailSearch = document.querySelector("#detailSearch");
 const practiceInputs = document.querySelectorAll("[data-practice]");
 
 function activateTab(tabName) {
@@ -69,6 +70,20 @@ if (glossarySearch) {
     document.querySelectorAll(".glossary-card").forEach((card) => {
       const haystack = `${card.innerText} ${card.dataset.keywords || ""}`.toLowerCase();
       card.style.display = haystack.includes(keyword) ? "" : "none";
+    });
+  });
+}
+
+if (detailSearch) {
+  detailSearch.addEventListener("input", () => {
+    const keyword = detailSearch.value.trim().toLowerCase();
+    document.querySelectorAll("[data-detail-item]").forEach((item) => {
+      const haystack = (item.dataset.detailText || item.innerText).toLowerCase();
+      item.hidden = keyword.length > 0 && !haystack.includes(keyword);
+    });
+    document.querySelectorAll("[data-detail-link]").forEach((link) => {
+      const haystack = link.innerText.toLowerCase();
+      link.hidden = keyword.length > 0 && !haystack.includes(keyword);
     });
   });
 }

@@ -80,12 +80,20 @@ $extensionFiles = foreach ($rootInfo in $extensionRoots) {
 $extensionAssetRoot = Join-Path $siteRoot "assets\extensions"
 New-Item -ItemType Directory -Force -Path $extensionAssetRoot | Out-Null
 
-$sourceCards = foreach ($file in $sourceFiles) {
+$sourceCards = New-Object System.Collections.Generic.List[string]
+$sourceTocLinks = New-Object System.Collections.Generic.List[string]
+$sourceIndex = 0
+
+foreach ($file in $sourceFiles) {
+  $sourceIndex++
   $relative = RelativeFrom $sourceRoot $file.FullName
   $content = HtmlEncode (ReadTextFile $file.FullName)
   $size = FormatSize $file.Length
-@"
-        <article class="source-file-card">
+  $sourceId = "source-$sourceIndex"
+  $encodedRelative = HtmlEncode $relative
+  $sourceTocLinks.Add("<a href=""#$sourceId"" data-detail-link=""source"">$encodedRelative</a>") | Out-Null
+  $sourceCards.Add(@"
+        <article id="$sourceId" class="source-file-card" data-detail-item data-detail-text="$encodedRelative">
           <h3>$([System.Net.WebUtility]::HtmlEncode($relative))</h3>
           <p class="detail-meta">源码文件 · $size</p>
           <details>
@@ -93,10 +101,27 @@ $sourceCards = foreach ($file in $sourceFiles) {
             <pre class="detail-code"><code>$content</code></pre>
           </details>
         </article>
-"@
+"@) | Out-Null
 }
 
-$extensionCards = foreach ($item in $extensionFiles) {
+$extensionCards = New-Object System.Collections.Generic.List[string]
+$extensionTocLinks = New-Object System.Collections.Generic.List[string]
+$extensionDayLinks = New-Object System.Collections.Generic.List[string]
+$extensionGroups = @($extensionFiles) | Sort-Object Day, Relative | Group-Object Day
+$extensionIndex = 0
+
+foreach ($group in $extensionGroups) {
+  $dayId = "ext-$($group.Name)"
+  $extensionDayLinks.Add("<a href=""#$dayId"">$($group.Name)<span>$($group.Count)</span></a>") | Out-Null
+  $extensionCards.Add(@"
+        <div id="$dayId" class="day-divider">
+          <strong>$($group.Name)</strong>
+          <span>$($group.Count) 个扩展文件</span>
+        </div>
+"@) | Out-Null
+
+foreach ($item in $group.Group) {
+  $extensionIndex++
   $file = $item.File
   $relative = $item.Relative
   $day = $item.Day
@@ -108,24 +133,29 @@ $extensionCards = foreach ($item in $extensionFiles) {
   $assetUrl = UrlPath $assetRelative
   $size = FormatSize $file.Length
   $ext = $file.Extension.ToLowerInvariant()
+  $extensionId = "extension-$extensionIndex"
+  $extensionTitle = "$day/$relative"
+  $encodedExtensionTitle = HtmlEncode $extensionTitle
+  $extensionTocLinks.Add("<a href=""#$extensionId"" data-detail-link=""extension"">$encodedExtensionTitle</a>") | Out-Null
 
   if ($ext -in @(".md", ".txt")) {
-    $body = '<details open><summary>展开完整文本</summary><pre class="detail-code"><code>' + (HtmlEncode (ReadTextFile $file.FullName)) + '</code></pre></details>'
+    $body = '<details><summary>展开完整文本</summary><pre class="detail-code"><code>' + (HtmlEncode (ReadTextFile $file.FullName)) + '</code></pre></details>'
   } elseif ($ext -eq ".html") {
-    $body = '<div class="extension-intro"><p>这是一个可交互的 HTML 扩展演示，已经复制到网站资源目录。下面提供宽屏预览；如果预览区域仍然放不下，建议点击按钮单独打开。</p><a class="open-resource" href="' + $assetUrl + '" target="_blank" rel="noopener">单独打开演示页面</a></div><div class="extension-preview"><iframe class="extension-frame" src="' + $assetUrl + '" title="' + (HtmlEncode $relative) + '" loading="lazy"></iframe></div>'
+    $body = '<div class="extension-intro"><p>这是一个可交互的 HTML 扩展演示。页面内预览默认折叠，避免完整资料库一次加载太长；需要沉浸查看时可以单独打开。</p><a class="open-resource" href="' + $assetUrl + '" target="_blank" rel="noopener">单独打开演示页面</a></div><details class="preview-details"><summary>展开页面内预览</summary><div class="extension-preview"><iframe class="extension-frame" src="' + $assetUrl + '" title="' + (HtmlEncode $relative) + '" loading="lazy"></iframe></div></details>'
   } elseif ($ext -in @(".png", ".jpg", ".jpeg", ".webp", ".gif")) {
     $body = '<p>这是扩展资料中的图例或截图，已经复制到网站资源目录。</p><img class="extension-image" src="' + $assetUrl + '" alt="' + (HtmlEncode $relative) + '">'
   } else {
     $body = '<p><a class="open-resource" href="' + $assetUrl + '" target="_blank" rel="noopener">打开扩展资源</a></p>'
   }
 
-@"
-        <article class="extension-file-card">
+  $extensionCards.Add(@"
+        <article id="$extensionId" class="extension-file-card" data-detail-item data-detail-text="$encodedExtensionTitle">
           <h3>$([System.Net.WebUtility]::HtmlEncode("$day/$relative"))</h3>
           <p class="detail-meta">扩展文件 · $size · $ext</p>
           $body
         </article>
-"@
+"@) | Out-Null
+}
 }
 
 $sourceCount = $sourceFiles.Count
@@ -150,6 +180,7 @@ $html = @"
     </div>
     <nav class="top-tabs" aria-label="详细资料导航">
       <a class="tab-link" href="index.html">返回学习路线</a>
+      <a class="tab-link" href="#detail-directory">资料目录</a>
       <a class="tab-link" href="#full-code-library">源码全文</a>
       <a class="tab-link" href="#extension-library">扩展资料库</a>
     </nav>
@@ -171,21 +202,53 @@ $html = @"
       </article>
     </section>
 
-    <section id="full-code-library" class="detail-section">
-      <h2>源码全文</h2>
-      <p class="muted">下面的文件来自完整项目 <code>integrated_qa_system</code>，按照路径排序。展开任意文件即可阅读完整内容。</p>
-      <div class="detail-grid">
-$($sourceCards -join "`n")
-      </div>
-    </section>
+    <div class="detail-reader">
+      <aside id="detail-directory" class="detail-toc" aria-label="完整资料库目录">
+        <div class="toc-panel">
+          <p class="eyebrow">资料目录</p>
+          <label class="search-label" for="detailSearch">搜索源码或扩展文件</label>
+          <input id="detailSearch" class="glossary-search" type="search" placeholder="输入 app.py、BM25、day06、RAGSystem...">
+          <nav class="toc-quick">
+            <a href="#full-code-library">源码全文<span>$sourceCount</span></a>
+            <a href="#extension-library">扩展资料库<span>$extensionCount</span></a>
+          </nav>
+          <h3>按天查看扩展</h3>
+          <nav class="toc-quick compact">
+$($extensionDayLinks -join "`n")
+          </nav>
+          <details open>
+            <summary>源码目录</summary>
+            <div class="toc-list">
+$($sourceTocLinks -join "`n")
+            </div>
+          </details>
+          <details>
+            <summary>扩展目录</summary>
+            <div class="toc-list">
+$($extensionTocLinks -join "`n")
+            </div>
+          </details>
+        </div>
+      </aside>
 
-    <section id="extension-library" class="detail-section">
-      <h2>扩展资料库</h2>
-      <p class="muted">下面的资源来自 day02 到 day07 的扩展文件夹。Markdown 和 TXT 会直接展示全文；HTML 动画和图片图例已复制到网站资源目录，并在页面中提供预览和单独打开入口。</p>
-      <div class="detail-grid">
+      <div class="detail-content">
+        <section id="full-code-library" class="detail-section">
+          <h2>源码全文</h2>
+          <p class="muted">下面的文件来自完整项目 <code>integrated_qa_system</code>，按照路径排序。展开任意文件即可阅读完整内容。</p>
+          <div class="detail-grid">
+$($sourceCards -join "`n")
+          </div>
+        </section>
+
+        <section id="extension-library" class="detail-section">
+          <h2>扩展资料库</h2>
+          <p class="muted">下面的资源来自 day02 到 day07 的扩展文件夹。Markdown 和 TXT 默认折叠，HTML 动画提供折叠预览和单独打开入口，避免完整资料库一次展开过长。</p>
+          <div class="detail-grid">
 $($extensionCards -join "`n")
+          </div>
+        </section>
       </div>
-    </section>
+    </div>
   </main>
 
   <script src="script.js"></script>
@@ -195,4 +258,5 @@ $($extensionCards -join "`n")
 
 Set-Content -Path (Join-Path $siteRoot "details.html") -Value $html -Encoding UTF8
 Write-Host "Generated details.html with $sourceCount source files and $extensionCount extension files."
+
 

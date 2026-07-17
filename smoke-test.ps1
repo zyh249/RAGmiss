@@ -35,10 +35,15 @@ $requiredHtml = @(
 $requiredDetails = @(
   "EduRAG 源码全文与扩展资料库",
   "返回学习路线",
+  "资料目录",
+  'id="detailSearch"',
+  "toc-list",
+  "day-divider",
   "源码全文",
   "扩展资料库",
   "单独打开演示页面",
   "extension-preview",
+  "preview-details",
   'loading="lazy"',
   "app.py",
   "new_main.py",
@@ -80,17 +85,24 @@ if ($extensionFileCount -lt 40) {
   throw "details.html extension file count too low: $extensionFileCount"
 }
 
-$requiredCss = @(".app-shell", ".day-card", ".flow-map", ".module-card", ".glossary-card", ".detail-page", ".extension-intro", ".extension-preview", "@media")
+$requiredCss = @(".app-shell", ".day-card", ".flow-map", ".module-card", ".glossary-card", ".detail-page", ".detail-reader", ".detail-toc", ".toc-list", ".extension-intro", ".extension-preview", "@media")
 foreach ($pattern in $requiredCss) {
   if ($styles -notlike "*$pattern*") {
     throw "styles.css missing pattern: $pattern"
   }
 }
 
-$requiredJs = @("activateTab", "localStorage", "navigator.clipboard", "scrollIntoView")
+$requiredJs = @("activateTab", "localStorage", "navigator.clipboard", "scrollIntoView", "detailSearch", "data-detail-item")
 foreach ($pattern in $requiredJs) {
   if ($script -notlike "*$pattern*") {
     throw "script.js missing pattern: $pattern"
+  }
+}
+
+$encodingArtifacts = @("澶嶅埗", "宸插", "鍗曠嫭")
+foreach ($pattern in $encodingArtifacts) {
+  if ($script -like "*$pattern*" -or $detailHtml -like "*$pattern*") {
+    throw "Generated files contain encoding artifact: $pattern"
   }
 }
 
@@ -102,4 +114,5 @@ foreach ($pattern in $externalRefs) {
 }
 
 Write-Host "Smoke test passed: static EduRAG learning site files look complete."
+
 
