@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG 检索策略介绍：直接检索、子查询、HyDE、递进式检索</title>
+  <style>
+    :root {
+      --bg: #f7f9fc;
+      --panel: #ffffff;
+      --ink: #182235;
+      --muted: #5c6b82;
+      --line: #dbe4f0;
+      --red: #d93025;
+      --blue: #2f5fd7;
+      --purple: #8a3ffc;
+      --green: #119c5a;
+      --orange: #f59e0b;
+      --shadow: 0 18px 40px rgba(25, 42, 70, 0.10);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(47, 95, 215, .09), transparent 28%),
+        radial-gradient(circle at top right, rgba(17, 156, 90, .08), transparent 30%),
+        var(--bg);
+      color: var(--ink);
+      line-height: 1.72;
+    }
+
+    .page {
+      width: min(1180px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 34px 0 56px;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #fff, #f2f6ff);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 34px 34px 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::after {
+      content: "";
+      position: absolute;
+      right: -70px;
+      top: -80px;
+      width: 240px;
+      height: 240px;
+      border-radius: 50%;
+      background: rgba(47, 95, 215, .08);
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: #fff4f2;
+      color: var(--red);
+      font-weight: 700;
+      font-size: 14px;
+      border: 1px solid #ffd6d1;
+    }
+
+    h1 {
+      margin: 18px 0 10px;
+      font-size: clamp(28px, 4vw, 44px);
+      letter-spacing: -0.04em;
+      line-height: 1.15;
+    }
+
+    .subtitle {
+      max-width: 900px;
+      color: var(--muted);
+      font-size: 18px;
+      margin: 0;
+    }
+
+    .notice {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .notice-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px 16px;
+      min-height: 96px;
+    }
+
+    .notice-card b { color: var(--blue); }
+    .notice-card.warn b { color: var(--orange); }
+    .notice-card.good b { color: var(--green); }
+
+    .section-title {
+      margin: 38px 0 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .section-title h2 {
+      margin: 0;
+      font-size: 26px;
+    }
+
+    .tag {
+      color: var(--red);
+      font-weight: 800;
+      font-size: 14px;
+      background: #fff4f2;
+      border: 1px solid #ffd6d1;
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 22px;
+      box-shadow: 0 12px 28px rgba(25, 42, 70, 0.07);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 7px;
+      width: 100%;
+      background: var(--blue);
+    }
+
+    .card.sub::before { background: var(--purple); }
+    .card.hyde::before { background: var(--green); }
+    .card.iter::before { background: var(--orange); }
+
+    .card h3 {
+      margin: 4px 0 12px;
+      font-size: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .num {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: inline-grid;
+      place-items: center;
+      color: white;
+      background: var(--blue);
+      font-weight: 900;
+      font-size: 16px;
+    }
+    .sub .num { background: var(--purple); }
+    .hyde .num { background: var(--green); }
+    .iter .num { background: var(--orange); }
+
+    .plain {
+      background: #f6f8fb;
+      border-left: 4px solid var(--red);
+      padding: 12px 14px;
+      border-radius: 12px;
+      margin: 14px 0;
+    }
+
+    .plain .label,
+    .block .label {
+      display: block;
+      color: var(--red);
+      font-weight: 800;
+      margin-bottom: 4px;
+    }
+
+    .blue { color: var(--blue); font-weight: 800; }
+    .red { color: var(--red); font-weight: 800; }
+    .purple-text { color: var(--purple); font-weight: 800; }
+    .green-text { color: var(--green); font-weight: 800; }
+    .orange-text { color: var(--orange); font-weight: 800; }
+
+    .block {
+      margin: 14px 0 0;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fff;
+    }
+
+    .example {
+      background: #fffaf1;
+      border-color: #fde8b7;
+    }
+
+    .steps {
+      counter-reset: step;
+      margin: 10px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .steps li {
+      counter-increment: step;
+      padding: 8px 0 8px 38px;
+      position: relative;
+      border-bottom: 1px dashed #e7edf7;
+    }
+
+    .steps li:last-child { border-bottom: 0; }
+
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0;
+      top: 10px;
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: #eef3ff;
+      color: var(--blue);
+      font-weight: 900;
+      font-size: 13px;
+    }
+
+    .flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      background: #f9fbff;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-weight: 700;
+      color: #334155;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .arrow { color: var(--muted); font-weight: 700; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 12px 28px rgba(25, 42, 70, 0.06);
+    }
+
+    th, td {
+      padding: 14px 16px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid var(--line);
+    }
+
+    th {
+      background: #f1f5ff;
+      color: #24324a;
+      font-size: 15px;
+    }
+
+    tr:last-child td { border-bottom: 0; }
+
+    .check-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .check-item {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+    }
+
+    .check-item h4 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .footer-note {
+      margin-top: 30px;
+      padding: 18px 22px;
+      background: #f7fff9;
+      border: 1px solid #ccefd7;
+      border-radius: var(--radius);
+      color: #244a32;
+    }
+
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 18px 0;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #25324a;
+      padding: 9px 14px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 800;
+      transition: .18s ease;
+    }
+
+    button:hover, button.active {
+      background: var(--blue);
+      color: #fff;
+      border-color: var(--blue);
+      transform: translateY(-1px);
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 860px) {
+      .notice, .grid, .check-list { grid-template-columns: 1fr; }
+      .hero { padding: 26px 22px; }
+      .page { width: min(100% - 24px, 1180px); }
+      table { font-size: 14px; }
+      th, td { padding: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <span class="eyebrow">图 1：检索策略介绍 · 校对修正版</span>
+      <h1>RAG 检索策略：从“直接查”到“拆开查、假设查、递进查”</h1>
+      <p class="subtitle">
+        这页把截图中的四类检索策略整理成适合课堂讲解的 HTML 网页，并对术语和知识点做了校正。核心逻辑是：问题越明确，检索越直接；问题越复杂、抽象或深层，越需要改写、拆分、假设文档或多轮递进检索。
+      </p>
+      <div class="notice">
+        <div class="notice-card good"><b>整体结论：</b><br>截图中的四类思路大方向正确，可以用于讲 RAG 检索策略。</div>
+        <div class="notice-card warn"><b>主要修正：</b><br>“回溯检索”不是常见标准叫法，建议改成“递进式检索 / 迭代检索 / 查询改写检索”。</div>
+        <div class="notice-card"><b>讲课重点：</b><br>不是每个问题都用高级策略，应该根据问题复杂度选择最小有效检索方案。</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title">
+        <span class="tag">四种策略</span>
+        <h2>一、检索策略讲解</h2>
+      </div>
+
+      <div class="toolbar" aria-label="策略筛选按钮">
+        <button class="active" data-filter="all">全部</button>
+        <button data-filter="direct">直接检索</button>
+        <button data-filter="subquery">子查询检索</button>
+        <button data-filter="hyde">HyDE 检索</button>
+        <button data-filter="iterative">递进式检索</button>
+      </div>
+
+      <div class="grid">
+        <article class="card direct" data-type="direct">
+          <h3><span class="num">1</span>直接检索</h3>
+          <p><b>适合：</b>明确查询、事实型问题、关键词比较清楚的问题。</p>
+          <div class="plain">
+            <span class="label">大白话</span>
+            最直接的“关键词找答案”：问题像“填空题”，有明确指向，就直接用问题里的关键词去搜资料。
+          </div>
+          <div class="block">
+            <span class="label">核心逻辑</span>
+            用户问题中已经包含明确实体、时间、指标或关键词，系统不需要复杂改写，直接把问题或关键词送入向量检索、关键词检索或混合检索。
+          </div>
+          <div class="block example">
+            <span class="label">例子</span>
+            用户问：<span class="red">“公司 2025 年的研发投入占比是多少？”</span>
+          </div>
+          <ol class="steps">
+            <li>提取关键词：<span class="blue">公司、2025 年、研发投入占比</span>。</li>
+            <li>到数据库或文档库中匹配相关段落。</li>
+            <li>返回能直接支撑答案的资料片段。</li>
+          </ol>
+          <div class="block">
+            <span class="label">优点</span>
+            快、成本低、链路短，适合简单明确的查询。
+          </div>
+        </article>
+
+        <article class="card sub" data-type="subquery">
+          <h3><span class="num">2</span>子查询检索</h3>
+          <p><b>适合：</b>多条件、多维度、需要拆分后再综合的问题。</p>
+          <div class="plain">
+            <span class="label">大白话</span>
+            把一个大问题拆成几个小问题，每个小问题单独检索，最后把结果合并起来回答。
+          </div>
+          <div class="block">
+            <span class="label">核心逻辑</span>
+            用户问题包含多个子主题、多个维度或多个比较对象。先拆分成若干子查询，再分别检索，最后做证据去重、对齐和综合判断。
+          </div>
+          <div class="block example">
+            <span class="label">例子</span>
+            用户问：<span class="red">“对比广州和深圳的人才引进政策，从补贴金额、落户难度、产业适配性三个方面分析哪个更适合计算机专业毕业生？”</span>
+          </div>
+          <ol class="steps">
+            <li>拆成子问题：广州补贴、广州落户、广州产业；深圳补贴、深圳落户、深圳产业。</li>
+            <li>每个子问题分别检索。</li>
+            <li>把结果按“城市 × 维度”整理成对比结构。</li>
+            <li>根据证据给出综合结论。</li>
+          </ol>
+          <div class="block">
+            <span class="label">优点</span>
+            能避免复杂问题“一口吃不下”，让每个检索任务更聚焦，减少遗漏关键信息。
+          </div>
+        </article>
+
+        <article class="card hyde" data-type="hyde">
+          <h3><span class="num">3</span>HyDE 检索</h3>
+          <p><b>适合：</b>抽象问题、开放式问题、原始问题缺少明确关键词的问题。</p>
+          <div class="plain">
+            <span class="label">大白话</span>
+            先“假设性写一段可能的答案或文档”，再用这段内容去检索相似资料。它不是直接相信假设答案，而是把假设文本当作检索桥梁。
+          </div>
+          <div class="block">
+            <span class="label">核心逻辑</span>
+            HyDE 的更严谨说法是 <span class="green-text">Hypothetical Document Embeddings</span>：让模型生成一段“假设文档”，把这段假设文档向量化，再用向量去找真实文档。
+          </div>
+          <div class="block example">
+            <span class="label">例子</span>
+            用户问：<span class="red">“如何培养孩子的时间管理能力？”</span>
+          </div>
+          <ol class="steps">
+            <li>先让模型生成假设文档：例如包含“作息表、计时器、任务拆分、家长监督”等内容。</li>
+            <li>把假设文档向量化。</li>
+            <li>用这个向量去检索真实资料。</li>
+            <li>用真实资料回答，而不是直接用假设答案回答。</li>
+          </ol>
+          <div class="block">
+            <span class="label">优点</span>
+            能补足原问题缺少关键词的问题，让检索更容易命中概念相关资料。
+          </div>
+        </article>
+
+        <article class="card iter" data-type="iterative">
+          <h3><span class="num">4</span>递进式检索 <small>（替代“回溯检索”叫法）</small></h3>
+          <p><b>适合：</b>深层问题、研究型问题、需要先找背景再找细节的问题。</p>
+          <div class="plain">
+            <span class="label">大白话</span>
+            先把复杂问题简化，找到基础资料；再根据基础资料继续追问细节，像“剥洋葱”一样一层层深入。
+          </div>
+          <div class="block">
+            <span class="label">核心逻辑</span>
+            对复杂问题先做查询改写或“退一步提问”，获得背景信息；再基于已检索到的内容生成下一轮更具体的查询，逐层补充证据。
+          </div>
+          <div class="block example">
+            <span class="label">例子</span>
+            用户问：<span class="red">“元宇宙技术在教育领域的应用瓶颈及未来 3 年的突破方向？”</span>
+          </div>
+          <ol class="steps">
+            <li>第一轮：简化为“元宇宙 教育应用 瓶颈”，找到基础信息。</li>
+            <li>第二轮：根据基础信息继续检索硬件成本、内容制作、交互体验、教师培训等细节。</li>
+            <li>第三轮：结合行业趋势，分析未来 3 年的突破方向。</li>
+          </ol>
+          <div class="block">
+            <span class="label">优点</span>
+            适合深层分析题，能够先搭框架，再逐步补证据，避免一开始就陷入细节检索混乱。</div>
+        </article>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title">
+        <span class="tag">对比记忆</span>
+        <h2>二、四种策略怎么选？</h2>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>策略</th>
+            <th>最适合的问题</th>
+            <th>检索动作</th>
+            <th>一句话记忆</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><b>直接检索</b></td>
+            <td>问题明确，关键词、实体、时间、指标清楚</td>
+            <td>直接用原问题或关键词检索</td>
+            <td><span class="blue">能直接查，就别复杂化</span></td>
+          </tr>
+          <tr>
+            <td><b>子查询检索</b></td>
+            <td>一个问题包含多个对象、多个条件、多个维度</td>
+            <td>拆成多个子问题分别查，再合并</td>
+            <td><span class="purple-text">大问题拆小问题</span></td>
+          </tr>
+          <tr>
+            <td><b>HyDE 检索</b></td>
+            <td>问题抽象，缺少明确关键词，但语义方向存在</td>
+            <td>先生成假设文档，再用假设文档向量检索</td>
+            <td><span class="green-text">先造检索桥梁，再找真实资料</span></td>
+          </tr>
+          <tr>
+            <td><b>递进式检索</b></td>
+            <td>深层研究题、趋势分析题、需要背景和细节的问题</td>
+            <td>先查背景，再根据结果继续查细节</td>
+            <td><span class="orange-text">先搭框架，再逐层深入</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <div class="section-title">
+        <span class="tag">校对结果</span>
+        <h2>三、截图知识点校对与修正建议</h2>
+      </div>
+      <div class="check-list">
+        <div class="check-item">
+          <h4>1. 直接检索：正确</h4>
+          <p>截图中“适用于明确查询、直接用关键词搜资料”的说法是正确的。建议补充：实际系统中直接检索不一定只用关键词，也可以用向量检索或混合检索。</p>
+        </div>
+        <div class="check-item">
+          <h4>2. 子查询检索：基本正确</h4>
+          <p>“分解复杂查询”的解释正确。需要补充的是：子查询结果不能简单拼接，最好做证据去重、来源对齐、冲突检查，再形成最终答案。</p>
+        </div>
+        <div class="check-item">
+          <h4>3. HyDE 检索：需要更严谨</h4>
+          <p>截图里“先猜后搜”的大白话容易让学生误以为系统会直接相信假设答案。更准确的讲法是：生成假设文档作为语义检索桥梁，最终答案仍然要依据真实检索资料。</p>
+        </div>
+        <div class="check-item">
+          <h4>4. “回溯检索”：建议改名</h4>
+          <p>“回溯检索”不是 RAG 里特别标准的通用叫法。截图描述的本质更像“查询改写 + 迭代检索 / 递进式检索 / Step-back 检索”。用于教学时建议用“递进式检索”更容易理解。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-title">
+        <span class="tag">课堂总结</span>
+        <h2>四、学生版记忆口诀</h2>
+      </div>
+      <div class="footer-note">
+        <p><b>简单问题：</b>直接检索。</p>
+        <p><b>复杂多维问题：</b>子查询检索。</p>
+        <p><b>抽象开放问题：</b>HyDE 检索。</p>
+        <p><b>深层研究问题：</b>递进式检索。</p>
+        <p><b>最终原则：</b>检索策略不是越复杂越好，而是越匹配问题越好。能直接查就直接查，查不准再考虑拆分、改写、HyDE 或多轮递进。</p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const buttons = document.querySelectorAll('button[data-filter]');
+    const cards = document.querySelectorAll('.card[data-type]');
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const filter = btn.dataset.filter;
+        buttons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        cards.forEach(card => {
+          const visible = filter === 'all' || card.dataset.type === filter;
+          card.classList.toggle('hidden', !visible);
+        });
+      });
+    });
+  </script>
+</body>
+</html>

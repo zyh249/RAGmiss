@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hybrid Search With Rerank 执行动画</title>
+  <style>
+    :root{
+      --bg:#f5f7fb;
+      --card:#ffffff;
+      --ink:#172033;
+      --muted:#64748b;
+      --line:#e5eaf2;
+      --blue:#3468f6;
+      --blue2:#6d8cff;
+      --green:#12a889;
+      --orange:#f59e0b;
+      --red:#ef4444;
+      --purple:#7c3aed;
+      --code:#111f32;
+      --code2:#172941;
+      --done:#143421;
+      --shadow:0 18px 50px rgba(23,32,51,.10);
+      --radius:22px;
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{
+      margin:0;
+      font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif;
+      color:var(--ink);
+      background:
+        radial-gradient(circle at 0 0, rgba(52,104,246,.13), transparent 30%),
+        radial-gradient(circle at 100% 0, rgba(18,168,137,.12), transparent 28%),
+        var(--bg);
+    }
+    .page{max-width:1580px;margin:0 auto;padding:24px;}
+    .hero{
+      background:linear-gradient(135deg,#fff 0%,#f8fbff 56%,#eef6ff 100%);
+      border:1px solid var(--line);
+      border-radius:30px;
+      box-shadow:var(--shadow);
+      padding:24px 26px;
+      display:grid;
+      grid-template-columns:1.15fr .85fr;
+      gap:18px;
+      align-items:center;
+    }
+    h1{margin:0 0 10px;font-size:30px;letter-spacing:.2px;}
+    .subtitle{margin:0;color:var(--muted);font-size:15px;line-height:1.75;}
+    .badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;}
+    .badge{background:#fff;border:1px solid #dbe6fb;border-radius:999px;padding:8px 12px;font-size:13px;font-weight:900;color:#284463;}
+    .hint-box{border:1px solid #dbeafe;background:#f8fbff;border-radius:20px;padding:14px 16px;font-size:14px;line-height:1.7;color:#38516f;}
+    .hint-box b{color:#1e3a8a;}
+
+    .pipeline{
+      margin-top:18px;
+      background:#fff;
+      border:1px solid var(--line);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow);
+      padding:16px;
+    }
+    .pipeline-title{font-size:15px;font-weight:1000;margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+    .dot{width:10px;height:10px;border-radius:50%;background:var(--blue);box-shadow:0 0 0 5px rgba(52,104,246,.12)}
+    .flow{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;align-items:center;}
+    .node{border:1px solid var(--line);border-radius:18px;background:#fff;min-height:82px;padding:12px;text-align:center;display:grid;place-items:center;transition:.2s ease;}
+    .node.done{background:#f3fff9;border-color:#bbf7d0;}
+    .node.active{background:#f4f7ff;border-color:#bcd0ff;transform:translateY(-2px);box-shadow:0 12px 24px rgba(52,104,246,.13);}
+    .node .ico{font-size:24px;line-height:1}.node .name{font-weight:1000;font-size:13px}.node .sub{font-size:11px;color:var(--muted);font-weight:800;}
+
+    .layout{display:grid;grid-template-columns:minmax(620px,.98fr) minmax(680px,1.02fr);gap:18px;margin-top:18px;align-items:start;}
+    .card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;}
+    .card-head{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:12px;background:linear-gradient(180deg,#fff,#fbfdff);}
+    .title{font-size:16px;font-weight:1000;display:flex;align-items:center;gap:10px;}
+    .tiny{font-size:12px;color:var(--muted);font-weight:900;}
+
+    .code-card{overflow:visible;}
+    .code-body{background:var(--code);padding:10px 0 14px;overflow:visible;}
+    .code-line{
+      display:grid;
+      grid-template-columns:46px minmax(0,1fr);
+      gap:10px;
+      align-items:start;
+      min-height:22px;
+      padding:2px 14px 2px 0;
+      border-left:5px solid transparent;
+      font-family:Consolas,"JetBrains Mono","Courier New",monospace;
+      font-size:13px;
+      line-height:1.45;
+      color:#dbeafe;
+      transition:.18s ease;
+    }
+    .code-line .ln{color:#8094b0;text-align:right;user-select:none;cursor:pointer;}
+    .code-text{white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;}
+    .code-line.done{background:rgba(22,163,74,.08);}
+    .code-line.current{background:linear-gradient(90deg,rgba(245,158,11,.28),rgba(245,158,11,.06));border-left-color:var(--orange);color:#fff8dc;}
+    .code-line.branch{background:rgba(124,58,237,.14);}
+    .code-line.warn{background:rgba(239,68,68,.13);}
+
+    .controls{position:sticky;bottom:12px;z-index:10;margin-top:16px;background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:22px;box-shadow:var(--shadow);padding:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+    button{border:0;border-radius:14px;padding:10px 15px;font-family:inherit;font-weight:1000;cursor:pointer;background:#eef3ff;color:#173a78;transition:.16s ease;}
+    button:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(52,104,246,.15)}
+    button.primary{background:var(--blue);color:#fff;}
+    button.ghost{background:#f2f5fa;color:#394860;}
+    button:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none;}
+    .mode{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-weight:900;font-size:13px;}
+    select,input[type="range"]{font-family:inherit;border:1px solid var(--line);background:#fff;border-radius:12px;padding:8px;color:#1f2a3d;font-weight:800;}
+    input[type="range"]{accent-color:var(--blue);padding:0;width:126px;}
+    .progress-wrap{width:100%;height:10px;background:#eef2f7;border-radius:999px;overflow:hidden;margin-top:4px;}
+    .progress{height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--green));transition:.2s ease;}
+
+    .right{display:grid;gap:18px;position:sticky;top:18px;}
+    .stage{padding:18px;}
+    .banner{display:grid;grid-template-columns:68px 1fr;gap:14px;align-items:center;background:linear-gradient(135deg,#f8fbff,#eef6ff);border:1px solid #dbe8ff;border-radius:20px;padding:14px;}
+    .stepnum{height:60px;width:60px;border-radius:20px;background:#fff;display:grid;place-items:center;color:var(--blue);font-size:24px;font-weight:1000;border:1px solid #dbe8ff;box-shadow:0 10px 24px rgba(52,104,246,.13);}
+    .step-title{font-size:20px;font-weight:1000;margin-bottom:6px;}
+    .step-desc{font-size:14px;color:var(--muted);line-height:1.7;}
+    .chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+    .chip{border:1px solid #dbe6fb;background:#fff;border-radius:999px;padding:6px 10px;font-size:12px;font-weight:900;color:#334e75;}
+
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px;}
+    .box{border:1px solid var(--line);background:#fff;border-radius:18px;padding:14px;min-width:0;}
+    .box-title{font-weight:1000;font-size:13px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .pill{font-size:11px;border-radius:999px;padding:4px 8px;background:#eef6ff;color:#255fc2;font-weight:1000;white-space:nowrap;}
+    .kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px;align-items:start;font-size:13px;margin:8px 0;}
+    .kv .k{color:var(--muted);font-weight:900;}.kv .v{font-weight:900;word-break:break-word;}
+    .mono{font-family:Consolas,"Courier New",monospace;white-space:pre-wrap;word-break:break-word;font-size:12.5px;line-height:1.55;color:#24354b;}
+    .log{background:#0f172a;color:#dbeafe;border-radius:18px;padding:14px;font-family:Consolas,"Courier New",monospace;white-space:pre-wrap;line-height:1.65;font-size:13px;min-height:128px;}
+
+    .bars,.sparse-list,.request-list,.hit-list,.doc-list{display:grid;gap:9px;}
+    .bar-row{display:grid;grid-template-columns:58px 1fr 46px;gap:8px;align-items:center;font-size:12px;font-weight:900;color:#52627a;}
+    .bar-track{height:12px;background:#eef2f7;border-radius:999px;overflow:hidden;}.bar-fill{height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--blue2));border-radius:999px;transition:.35s ease;}
+    .sparse-row{display:grid;grid-template-columns:58px 1fr 52px;gap:8px;align-items:center;font-size:12px;font-weight:900;color:#44546b;}
+    .token{border:1px solid #dbeafe;background:#f8fbff;border-radius:10px;padding:7px 8px;color:#173a78;}
+    .mini-track{height:10px;background:#eef2f7;border-radius:999px;overflow:hidden;}.mini-fill{height:100%;background:linear-gradient(90deg,var(--green),#8be0d1);border-radius:999px;transition:.35s ease;}
+
+    .req{border:1px solid var(--line);border-radius:15px;background:#fff;padding:10px;}
+    .req strong{color:#18345b}.req .mono{margin-top:6px;color:#43536a;}
+    .hit{border:1px solid var(--line);border-radius:15px;background:#fff;padding:10px;display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;}
+    .hit .id{height:38px;border-radius:12px;background:#eef3ff;color:#284db6;display:grid;place-items:center;font-weight:1000;}.hit b{font-size:13px}.hit p{margin:3px 0 0;color:var(--muted);font-size:11.5px;}.score{font-family:Consolas,monospace;background:#ecfdf5;color:#047857;border-radius:10px;padding:6px 8px;font-weight:1000;font-size:12px;}
+    table{width:100%;border-collapse:separate;border-spacing:0 8px;} th{font-size:12px;color:var(--muted);text-align:left;padding:0 8px;} td{font-size:13px;background:#fff;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:9px 8px;} td:first-child{border-left:1px solid var(--line);border-radius:12px 0 0 12px;font-weight:1000;} td:last-child{border-right:1px solid var(--line);border-radius:0 12px 12px 0;}
+    .doc{border:1px solid var(--line);border-radius:16px;padding:12px;background:#fff;}.doc.final{border-color:#a7f3d0;background:#f7fffb;}.doc-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:7px;}.doc-id{font-weight:1000;color:#0f766e}.doc-text{font-size:13px;line-height:1.6;color:#334155;}
+    .warnbox{border:1px dashed #f6c76d;background:#fffaf0;border-radius:18px;padding:12px 14px;color:#6b4304;font-size:13px;line-height:1.65;margin-top:14px;}
+
+    @media(max-width:1240px){
+      .hero,.layout{grid-template-columns:1fr}.right{position:static}.flow{grid-template-columns:1fr 1fr}.grid2{grid-template-columns:1fr}.mode{margin-left:0}.code-line{font-size:12px;}
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <section class="hero">
+      <div>
+        <h1>Hybrid Search With Rerank 执行动画</h1>
+        <p class="subtitle">基于你这版代码重新设计：用真实执行链路解释 <b>BGE-M3 dense/sparse 编码</b>、<b>Milvus 两路 AnnSearchRequest</b>、<b>WeightedRanker(1.0, 0.7)</b>、<b>父文档去重</b> 和 <b>BGE-Reranker 二次排序</b>。</p>
+        <div class="badges">
+          <span class="badge">源码行号精确对应</span>
+          <span class="badge">无代码区内部滚动条</span>
+          <span class="badge">变量格式可视化</span>
+          <span class="badge">try / except 稀疏向量分支</span>
+        </div>
+      </div>
+      <div class="hint-box">
+        <b>动画目标：</b>把这段函数看成一个执行引擎。左侧负责显示代码当前跑到哪一行，右侧负责显示这一行产生了什么数据、数据格式是什么、下一步为什么要这么做。
+      </div>
+    </section>
+
+    <section class="pipeline">
+      <div class="pipeline-title"><span class="dot"></span>整体流程</div>
+      <div class="flow" id="flow"></div>
+    </section>
+
+    <section class="layout">
+      <div>
+        <article class="card code-card">
+          <div class="card-head">
+            <div class="title"><span class="dot"></span>源码执行区</div>
+            <div class="tiny" id="lineTip">Line -</div>
+          </div>
+          <div class="code-body" id="codeBody"></div>
+        </article>
+
+        <div class="controls">
+          <button class="ghost" id="resetBtn">重置</button>
+          <button class="ghost" id="prevBtn">上一步</button>
+          <button class="primary" id="playBtn">自动播放</button>
+          <button id="nextBtn">下一步</button>
+          <div class="mode">
+            <span>稀疏格式</span>
+            <select id="branchSelect">
+              <option value="csr">CSR：row.indices / row.data</option>
+              <option value="coo">COO：row.col / row.data</option>
+              <option value="fallback">异常：getrow(0) 兜底</option>
+            </select>
+            <span>速度</span>
+            <input id="speedRange" type="range" min="700" max="2400" value="1250" step="100">
+          </div>
+          <div class="progress-wrap"><div class="progress" id="progress"></div></div>
+        </div>
+      </div>
+
+      <div class="right">
+        <article class="card">
+          <div class="card-head">
+            <div class="title"><span class="dot"></span>当前步骤说明</div>
+            <div class="tiny" id="phaseTip">等待开始</div>
+          </div>
+          <div class="stage">
+            <div class="banner">
+              <div class="stepnum" id="stepNum">0</div>
+              <div>
+                <div class="step-title" id="stepTitle">准备开始</div>
+                <div class="step-desc" id="stepDesc">点击“下一步”或者“自动播放”，按真实代码顺序观察混合检索和重排序过程。</div>
+              </div>
+            </div>
+            <div class="chips" id="chips"></div>
+
+            <div class="grid2">
+              <div class="box">
+                <div class="box-title">当前变量 <span class="pill">runtime</span></div>
+                <div id="varsBox"></div>
+              </div>
+              <div class="box">
+                <div class="box-title">当前数据格式 <span class="pill">format</span></div>
+                <div class="mono" id="formatBox">等待执行...</div>
+              </div>
+            </div>
+
+            <div class="grid2">
+              <div class="box">
+                <div class="box-title">Dense 向量 <span class="pill">dense_vector</span></div>
+                <div class="bars" id="denseBars"></div>
+              </div>
+              <div class="box">
+                <div class="box-title">Sparse 向量 <span class="pill">sparse_vector</span></div>
+                <div class="sparse-list" id="sparseList"></div>
+              </div>
+            </div>
+
+            <div class="grid2">
+              <div class="box">
+                <div class="box-title">AnnSearchRequest <span class="pill">Milvus</span></div>
+                <div class="request-list" id="requestList"></div>
+              </div>
+              <div class="box">
+                <div class="box-title">Hybrid Search 命中子块 <span class="pill">sub chunks</span></div>
+                <div class="hit-list" id="hitList"></div>
+              </div>
+            </div>
+
+            <div class="grid2">
+              <div class="box">
+                <div class="box-title">父文档去重 <span class="pill">parent docs</span></div>
+                <div class="doc-list" id="parentList"></div>
+              </div>
+              <div class="box">
+                <div class="box-title">Rerank 结果 <span class="pill">scores</span></div>
+                <div id="rerankTable"></div>
+              </div>
+            </div>
+
+            <div class="box" style="margin-top:14px;">
+              <div class="box-title">最终返回 <span class="pill">ranked_parent_docs[:CANDIDATE_M]</span></div>
+              <div class="doc-list" id="finalList"></div>
+            </div>
+
+            <div class="warnbox" id="warnBox"></div>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-head">
+            <div class="title"><span class="dot"></span>执行日志</div>
+            <div class="tiny">模拟运行输出</div>
+          </div>
+          <div style="padding:18px;"><div class="log" id="logBox">等待执行...</div></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+<script>
+const codeLines = [
+`def hybrid_search_with_rerank(self, query, k=Config().RETRIEVAL_K, source_filter=None):`,
+`        # 使用BGE-M3嵌入函数生成查询的嵌入`,
+`        query_embeddings = self.embedding_function([query])`,
+`        dense_query_vector = query_embeddings["dense"][0]`,
+`        # 初始化稀疏向量字典`,
+`        sparse_query_vector = {}`,
+`        try:`,
+`            row = query_embeddings["sparse"][0]`,
+`            if hasattr(row, 'col'):` ,
+`                indices = row.col`,
+`                values = row.data`,
+`            else:`,
+`                indices = row.indices`,
+`                values = row.data`,
+`        except Exception as e:`,
+`            row = query_embeddings["sparse"].getrow(0)`,
+`            indices = row.indices`,
+`            values = row.data`,
+`        for idx, value in zip(indices, values):`,
+`            sparse_query_vector[idx] = value`,
+`        filter_expr = f"source=='{source_filter}'" if source_filter else ""`,
+`        dense_request = AnnSearchRequest(`,
+`            data = [dense_query_vector],`,
+`            anns_field="dense_vector",`,
+`            param = {"metric_type": "IP", "params": {"nprobe": 10}},`,
+`            limit = k,`,
+`            expr = filter_expr`,
+`        )`,
+`        sparse_request = AnnSearchRequest(`,
+`            data = [sparse_query_vector],`,
+`            anns_field="sparse_vector",`,
+`            param = {"metric_type": "IP", "params": {}},`,
+`            limit = k,`,
+`            expr = filter_expr`,
+`        )`,
+`        # 创建加权排序器，稠密向量权重 1.0，稀疏向量权重 0.7`,
+`        ranker = WeightedRanker(1.0, 0.7)`,
+`        result = self.client.hybrid_search(`,
+`            collection_name = self.collection_name,`,
+`            reqs=[dense_request, sparse_request],`,
+`            ranker=ranker,`,
+`            limit = k,`,
+`            output_fields=["text", "parent_id", "parent_content", "source", "timestamp"]`,
+`        )[0]`,
+`        # 将搜索结果转换为Document对象列表`,
+`        sub_chunks = [self._doc_from_hit(hit["entity"]) for hit in result]`,
+`        print(f'sub_chunks-->{len(sub_chunks)}')`,
+`        # 从子块提取去重的父文档`,
+`        parent_docs = self._get_unique_parent_docs(sub_chunks)`,
+`        # 如果只有1个文档，直接返回跳过重排序`,
+`        if len(parent_docs) < 2:`,
+`            return parent_docs[:Config().CANDIDATE_M]`,
+`        # 如果有父文档，进行重排序`,
+`        if parent_docs:`,
+`            pairs = [[query, doc.page_content] for doc in parent_docs]`,
+`            scores = self.reranker.predict(pairs)`,
+`            # 根据得分从高到低排序文档`,
+`            ranked_parent_docs = [doc for _, doc in sorted(zip(scores, parent_docs), reverse=True)]`,
+`        else:`,
+`            ranked_parent_docs = []`,
+`        # 返回前k个重排序后的文档`,
+`        return ranked_parent_docs[:Config().CANDIDATE_M]`
+];
+
+const phases = [
+  {key:'entry', icon:'🚪', name:'入口', sub:'query / k'},
+  {key:'embed', icon:'🧠', name:'BGE-M3', sub:'dense+sparse'},
+  {key:'sparse', icon:'🧩', name:'稀疏解析', sub:'indices/data'},
+  {key:'request', icon:'📦', name:'请求构造', sub:'AnnSearchRequest'},
+  {key:'hybrid', icon:'🔀', name:'混合检索', sub:'WeightedRanker'},
+  {key:'parent', icon:'🧹', name:'父文档', sub:'去重'},
+  {key:'rerank', icon:'🏁', name:'Rerank', sub:'最终排序'}
+];
+
+const denseVector = [0.18,0.72,0.44,0.91,0.36,0.63];
+const sparseItems = [
+  {idx:1051, token:'AI', value:.82},
+  {idx:2876, token:'培训', value:.74},
+  {idx:3099, token:'老师', value:.93},
+  {idx:5442, token:'课程', value:.46}
+];
+const hits = [
+  {id:'C02', parent:'P20', title:'AI 课程体系、阶段大纲与学习路线', dense:.82, sparse:.77, weighted:1.359, source:'course.md'},
+  {id:'C01', parent:'P10', title:'AI 培训讲师介绍与授课方向', dense:.88, sparse:.63, weighted:1.321, source:'teacher.md'},
+  {id:'C03', parent:'P10', title:'讲师团队答疑方式和项目辅导安排', dense:.76, sparse:.58, weighted:1.166, source:'teacher.md'},
+  {id:'C04', parent:'P30', title:'学费、班型和开课时间说明', dense:.69, sparse:.50, weighted:1.040, source:'price.md'}
+];
+const parents = [
+  {id:'P20', source:'course.md', text:'AI 课程包含 Python、机器学习、深度学习、RAG 与大模型应用开发，适合咨询课程体系和学习路线。', rerank:.74, rank:2},
+  {id:'P10', source:'teacher.md', text:'AI 培训讲师主要负责大模型应用、RAG、Agent、向量数据库和项目实战课程，适合回答老师相关问题。', rerank:.91, rank:1},
+  {id:'P30', source:'price.md', text:'课程费用、开课时间和班型安排属于招生咨询信息，可结合具体校区和班期回答。', rerank:.53, rank:3}
+];
+const finalDocs = parents.filter(p=>p.rank<=2).sort((a,b)=>a.rank-b.rank);
+
+function branchLines(mode){
+  if(mode === 'coo') return [8,9,10,11];
+  if(mode === 'fallback') return [8,15,16,17,18];
+  return [8,9,12,13,14];
+}
+function branchText(mode){
+  if(mode === 'coo') return 'row 具有 col 属性，按 COO 风格取 row.col 和 row.data。';
+  if(mode === 'fallback') return 'query_embeddings["sparse"][0] 触发异常，进入 except，用 getrow(0) 兜底。';
+  return 'row 没有 col 属性，按 CSR 风格取 row.indices 和 row.data。';
+}
+
+const baseSteps = [
+  {line:1, phase:'entry', title:'进入 hybrid_search_with_rerank 方法', desc:'方法接收 query、k 和 source_filter。k 默认来自 Config().RETRIEVAL_K，用于控制 Milvus 每路召回数量。', fmt:'query: str\nk: int\nsource_filter: Optional[str]', vars:{query:'AI培训有哪些老师？', k:'5', source_filter:'None', CANDIDATE_M:'2'}, log:'调用 hybrid_search_with_rerank(query="AI培训有哪些老师？")'},
+  {line:3, phase:'embed', title:'调用 BGE-M3 生成查询向量', desc:'self.embedding_function([query]) 会把原始中文问题转换为两套表示：dense 表达语义，sparse 表达关键词权重。', fmt:'query_embeddings = {\n  "dense": [ndarray(float32)],\n  "sparse": sparse matrix / sparse array\n}', vars:{'query_embeddings.keys()':'dense, sparse'}, showDense:false, showSparse:false, log:'query_embeddings = embedding_function([query])'},
+  {line:4, phase:'embed', title:'取出 dense_query_vector', desc:'dense_query_vector 是查询的稠密向量，后面会去 Milvus 的 dense_vector 字段做向量检索。', fmt:'dense_query_vector = query_embeddings["dense"][0]\nshape = (dim,)\n示例展示前 6 维', vars:{'dense_query_vector':'[0.18, 0.72, 0.44, 0.91, 0.36, 0.63, ...]'}, showDense:true, log:'dense_query_vector 已取出'},
+  {line:6, phase:'sparse', title:'初始化 sparse_query_vector 字典', desc:'Milvus 稀疏向量查询通常需要 dict 格式：{词项索引: 词项权重}。', fmt:'sparse_query_vector = {}', vars:{'sparse_query_vector':'{}'}, showDense:true, log:'初始化空字典，等待填入稀疏向量非零项'},
+  {line:8, phase:'sparse', branch:true, title:'读取 sparse 第 0 行', desc:'这里根据稀疏矩阵实际格式走不同分支。页面右下角可以切换 CSR、COO 或 getrow(0) 兜底分支。', fmt:'row = query_embeddings["sparse"][0]\n接下来判断 row 是否有 col 属性', vars:{row:'sparse row object'}, showDense:true, log:'进入 try，尝试直接读取 query_embeddings["sparse"][0]'},
+  {line:19, phase:'sparse', title:'遍历 indices 和 values，组装稀疏字典', desc:'zip(indices, values) 把词项索引和权重一一配对，生成 Milvus sparse_vector 查询使用的字典。', fmt:'indices = [1051, 2876, 3099, 5442]\nvalues = [0.82, 0.74, 0.93, 0.46]\nsparse_query_vector = {1051:0.82, ...}', vars:{indices:'[1051, 2876, 3099, 5442]', values:'[0.82, 0.74, 0.93, 0.46]'}, showDense:true, showSparse:true, log:'sparse_query_vector 填充完成'},
+  {line:21, phase:'request', title:'生成过滤表达式 filter_expr', desc:'如果 source_filter 有值，就只检索指定 source；否则 filter_expr 为空字符串，表示不过滤。', fmt:'source_filter=None → filter_expr=""\nsource_filter="teacher.md" → source==\'teacher.md\'', vars:{filter_expr:'""'}, showDense:true, showSparse:true, log:'filter_expr = ""'},
+  {line:22, phase:'request', title:'创建 dense_request', desc:'dense_request 使用 dense_query_vector 搜索 dense_vector 字段，metric_type 为 IP，nprobe 控制 IVF 检索范围。', fmt:'AnnSearchRequest(\n  data=[dense_query_vector],\n  anns_field="dense_vector",\n  metric_type="IP",\n  nprobe=10,\n  limit=k\n)', vars:{anns_field:'dense_vector', metric_type:'IP', nprobe:'10'}, showDense:true, showSparse:true, showRequests:'dense', log:'dense_request 构造完成'},
+  {line:29, phase:'request', title:'创建 sparse_request', desc:'sparse_request 使用 sparse_query_vector 搜索 sparse_vector 字段，用来补充关键词匹配能力。', fmt:'AnnSearchRequest(\n  data=[sparse_query_vector],\n  anns_field="sparse_vector",\n  metric_type="IP",\n  limit=k\n)', vars:{anns_field:'sparse_vector', metric_type:'IP', data:'[{1051:0.82, ...}]'}, showDense:true, showSparse:true, showRequests:'both', log:'sparse_request 构造完成'},
+  {line:37, phase:'hybrid', title:'创建 WeightedRanker(1.0, 0.7)', desc:'权重顺序必须和 reqs 顺序一致。这里 reqs=[dense_request, sparse_request]，所以 1.0 给 dense，0.7 给 sparse。', fmt:'WeightedRanker(1.0, 0.7)\n综合分 ≈ dense_score × 1.0 + sparse_score × 0.7', vars:{dense_weight:'1.0', sparse_weight:'0.7'}, showDense:true, showSparse:true, showRequests:'both', log:'ranker = WeightedRanker(1.0, 0.7)'},
+  {line:38, phase:'hybrid', title:'执行 Milvus hybrid_search', desc:'Milvus 同时执行 dense_vector 和 sparse_vector 两路检索，然后使用 WeightedRanker 合并结果，返回 Top-K 子块。', fmt:'result = client.hybrid_search(...)[0]\nresult: list[Hit]\n每个 Hit 包含 entity 和 score 信息', vars:{collection_name:'self.collection_name', output_fields:'text, parent_id, parent_content, source, timestamp'}, showDense:true, showSparse:true, showRequests:'both', showHits:true, log:'hybrid_search 返回 4 个子块命中结果'},
+  {line:46, phase:'hybrid', title:'Hit 转 Document 子块', desc:'每个 hit["entity"] 转成 Document，方便后续按照 parent_id / parent_content 回到父文档。', fmt:'sub_chunks = [Document(...), Document(...)]\nlen(sub_chunks)=4', vars:{'len(sub_chunks)':'4'}, showHits:true, log:'sub_chunks-->4'},
+  {line:49, phase:'parent', title:'从子块提取去重父文档', desc:'一个父文档可能命中多个子块，例如 C01 和 C03 都来自 P10。去重后只保留一个父文档进入 rerank。', fmt:'parent_docs = _get_unique_parent_docs(sub_chunks)\nC01 + C03 → P10 只保留一次', vars:{'len(parent_docs)':'3'}, showHits:true, showParents:true, log:'parent_docs = [P20, P10, P30]'},
+  {line:51, phase:'parent', title:'判断是否跳过 Rerank', desc:'如果父文档少于 2 个，排序没有意义，直接返回。当前有 3 个父文档，所以继续执行 rerank。', fmt:'len(parent_docs)=3\n3 < 2 → False', vars:{condition:'False'}, showParents:true, log:'父文档数量大于等于 2，不触发提前返回'},
+  {line:54, phase:'rerank', title:'进入 rerank 分支', desc:'parent_docs 非空，所以构造 pairs 并调用 self.reranker.predict(pairs)。', fmt:'if parent_docs: True', vars:{parent_docs:'非空 list[Document]'}, showParents:true, log:'进入 if parent_docs 分支'},
+  {line:55, phase:'rerank', title:'构造 pairs', desc:'BGE-Reranker 的输入是 [query, doc.page_content] 组成的二元组列表，不是直接传 Document 对象。', fmt:'pairs = [\n  [query, P20.page_content],\n  [query, P10.page_content],\n  [query, P30.page_content]\n]', vars:{'len(pairs)':'3'}, showParents:true, showRerank:true, log:'pairs 构造完成'},
+  {line:56, phase:'rerank', title:'Reranker 重新打分', desc:'Reranker 会重新判断 query 和每个父文档的相关性。它可能改变 hybrid_search 原来的顺序。', fmt:'scores = [0.74, 0.91, 0.53]\n分数越高，最终越靠前', vars:{scores:'[0.74, 0.91, 0.53]'}, showParents:true, showRerank:true, log:'scores = self.reranker.predict(pairs)'},
+  {line:58, phase:'rerank', title:'根据 rerank 得分降序排序', desc:'排序后 P10 排到第一，说明“老师相关文档”比“课程大纲文档”更适合回答当前 query。', fmt:'sorted(zip(scores, parent_docs), reverse=True)\n得到 ranked_parent_docs = [P10, P20, P30]', vars:{ranked_parent_docs:'[P10, P20, P30]'}, showParents:true, showRerank:true, log:'ranked_parent_docs = [P10, P20, P30]'},
+  {line:62, phase:'rerank', title:'返回最终 CANDIDATE_M 个父文档', desc:'最后返回 ranked_parent_docs[:Config().CANDIDATE_M]。这里 CANDIDATE_M=2，所以返回 P10 和 P20。', fmt:'return ranked_parent_docs[:2]\n最终给大模型的上下文 = [P10, P20]', vars:{return:'[P10, P20]'}, showParents:true, showRerank:true, showFinal:true, log:'return [P10, P20]'}
+];
+
+let current = -1;
+let timer = null;
+const el = id => document.getElementById(id);
+
+function getSteps(){
+  const mode = el('branchSelect').value;
+  const bLines = branchLines(mode);
+  const branchStep = {
+    line:bLines[bLines.length-1],
+    phase:'sparse',
+    branch:true,
+    title:'确认稀疏向量分支',
+    desc:branchText(mode),
+    fmt: mode==='coo' ? 'indices = row.col\nvalues = row.data' : mode==='fallback' ? 'row = sparse.getrow(0)\nindices = row.indices\nvalues = row.data' : 'indices = row.indices\nvalues = row.data',
+    vars: mode==='coo' ? {branch:'COO', indices:'row.col', values:'row.data'} : mode==='fallback' ? {branch:'except fallback', row:'getrow(0)'} : {branch:'CSR', indices:'row.indices', values:'row.data'},
+    showDense:true,
+    log:branchText(mode),
+    extraLines:bLines
+  };
+  return [...baseSteps.slice(0,5), branchStep, ...baseSteps.slice(5)];
+}
+
+function renderCode(){
+  const body = el('codeBody');
+  body.innerHTML = '';
+  codeLines.forEach((line, idx)=>{
+    const row = document.createElement('div');
+    row.className = 'code-line';
+    row.dataset.line = idx + 1;
+    const ln = document.createElement('span');
+    ln.className = 'ln';
+    ln.textContent = idx + 1;
+    ln.title = '点击跳到相关动画步骤';
+    ln.addEventListener('click',()=>jumpToLine(idx+1));
+    const text = document.createElement('span');
+    text.className = 'code-text';
+    text.textContent = line || ' ';
+    row.appendChild(ln);
+    row.appendChild(text);
+    body.appendChild(row);
+  });
+}
+
+function renderFlow(phase){
+  const active = phases.findIndex(p=>p.key===phase);
+  el('flow').innerHTML = '';
+  phases.forEach((p,i)=>{
+    const node = document.createElement('div');
+    node.className = 'node ' + (i<active?'done':i===active?'active':'');
+    node.innerHTML = `<div class="ico">${p.icon}</div><div class="name">${p.name}</div><div class="sub">${p.sub}</div>`;
+    el('flow').appendChild(node);
+  });
+}
+
+function renderVars(vars={}){
+  const box = el('varsBox');
+  box.innerHTML = '';
+  Object.entries(vars).forEach(([k,v])=>{
+    const item = document.createElement('div');
+    item.className = 'kv';
+    const kk = document.createElement('div'); kk.className='k'; kk.textContent=k;
+    const vv = document.createElement('div'); vv.className='v mono'; vv.textContent=v;
+    item.appendChild(kk); item.appendChild(vv); box.appendChild(item);
+  });
+  if(!Object.keys(vars).length) box.innerHTML = '<div class="mono">暂无变量变化</div>';
+}
+
+function renderDense(show=false){
+  el('denseBars').innerHTML = denseVector.map((v,i)=>`<div class="bar-row"><div>dim${i+1}</div><div class="bar-track"><div class="bar-fill" style="width:${show?v*100:0}%"></div></div><div>${show?v.toFixed(2):'-'}</div></div>`).join('');
+}
+function renderSparse(show=false){
+  el('sparseList').innerHTML = sparseItems.map(it=>`<div class="sparse-row"><div class="token">${show?it.token:'-'}</div><div class="mini-track"><div class="mini-fill" style="width:${show?it.value*100:0}%"></div></div><div>${show?it.idx:'-'}</div></div>`).join('');
+}
+function renderRequests(mode){
+  const list = [];
+  if(mode === 'dense' || mode === 'both') list.push(`<div class="req"><strong>dense_request</strong><div class="mono">anns_field = "dense_vector"\nmetric_type = "IP"\nparams = {"nprobe": 10}\nlimit = k</div></div>`);
+  if(mode === 'both') list.push(`<div class="req"><strong>sparse_request</strong><div class="mono">anns_field = "sparse_vector"\nmetric_type = "IP"\nparams = {}\nlimit = k</div></div>`);
+  el('requestList').innerHTML = list.length ? list.join('') : '<div class="mono">等待构造请求...</div>';
+}
+function renderHits(show=false){
+  el('hitList').innerHTML = show ? hits.map(h=>`<div class="hit"><div class="id">${h.id}</div><div><b>${h.title}</b><p>parent=${h.parent} · source=${h.source} · dense ${h.dense} + sparse ${h.sparse}×0.7</p></div><div class="score">${h.weighted.toFixed(3)}</div></div>`).join('') : '<div class="mono">等待 hybrid_search 返回...</div>';
+}
+function renderParents(show=false){
+  el('parentList').innerHTML = show ? parents.map(p=>`<div class="doc"><div class="doc-head"><span class="doc-id">${p.id}</span><span class="score">${p.source}</span></div><div class="doc-text">${p.text}</div></div>`).join('') : '<div class="mono">等待子块回溯父文档...</div>';
+}
+function renderRerank(show=false){
+  el('rerankTable').innerHTML = show ? `<table><thead><tr><th>父文档</th><th>Rerank 分数</th><th>最终名次</th></tr></thead><tbody>${parents.map(p=>`<tr><td>${p.id}</td><td>${p.rerank.toFixed(2)}</td><td>${p.rank}</td></tr>`).join('')}</tbody></table>` : '<div class="mono">等待 reranker.predict(pairs)...</div>';
+}
+function renderFinal(show=false){
+  el('finalList').innerHTML = show ? finalDocs.map(p=>`<div class="doc final"><div class="doc-head"><span class="doc-id">${p.id}</span><span class="score">rank ${p.rank}</span></div><div class="doc-text">${p.text}</div></div>`).join('') : '<div class="mono">等待最终 return...</div>';
+}
+function renderChips(step){
+  const chips = [`当前行：${step.line}`, `阶段：${phases.find(p=>p.key===step.phase)?.name || step.phase}`];
+  if(step.branch) chips.push(`分支：${el('branchSelect').selectedOptions[0].textContent}`);
+  el('chips').innerHTML = chips.map(c=>`<span class="chip">${c}</span>`).join('');
+}
+function warningFor(step){
+  const line = step.line;
+  if(line === 1) return '提示：默认参数 k=Config().RETRIEVAL_K 会在函数定义时执行一次。项目里更稳的写法是 k=None，然后函数内部读取 Config。';
+  if(line === 20) return '提示：为了兼容 Milvus，稀疏向量建议写成 sparse_query_vector[int(idx)] = float(value)，避免 numpy.int / numpy.float 类型导致兼容问题。';
+  if(line === 21) return '提示：filter_expr 更规范写法是 source == \'xxx\'，并注意 source_filter 中单引号转义。';
+  if(line === 58) return '提示：sorted(zip(scores, parent_docs), reverse=True) 在分数相同时可能继续比较 Document 对象，更稳的是 key=lambda x: float(x[0])。';
+  if(line === 62) return '提示：这里返回的是 CANDIDATE_M 个，不是注释里的前 k 个，注释建议改成“返回前 CANDIDATE_M 个”。';
+  return '当前代码逻辑：先召回子块，再回溯父文档，最后用 reranker 对父文档二次排序。';
+}
+
+function highlightLines(stepIndex){
+  const steps = getSteps();
+  document.querySelectorAll('.code-line').forEach(row=>{ row.classList.remove('current','done','branch','warn'); });
+  const doneLines = new Set();
+  for(let i=0;i<stepIndex;i++){
+    const s = steps[i];
+    doneLines.add(s.line);
+    (s.extraLines||[]).forEach(l=>doneLines.add(l));
+  }
+  doneLines.forEach(l=>document.querySelector(`.code-line[data-line="${l}"]`)?.classList.add('done'));
+  const step = steps[stepIndex];
+  if(!step) return;
+  const lines = step.extraLines || [step.line];
+  lines.forEach((l,idx)=>{
+    const row = document.querySelector(`.code-line[data-line="${l}"]`);
+    if(row){ row.classList.add(idx===lines.length-1?'current':'branch'); }
+  });
+  [1,20,21,58,62].forEach(l=>document.querySelector(`.code-line[data-line="${l}"]`)?.classList.add('warn'));
+  const currentRow = document.querySelector(`.code-line[data-line="${step.line}"]`);
+  if(currentRow) currentRow.scrollIntoView({block:'center', behavior:'smooth'});
+}
+
+function update(){
+  const steps = getSteps();
+  if(current < 0){
+    renderFlow('entry'); renderDense(false); renderSparse(false); renderRequests(); renderHits(false); renderParents(false); renderRerank(false); renderFinal(false); renderVars({});
+    el('stepNum').textContent = '0'; el('stepTitle').textContent='准备开始'; el('stepDesc').textContent='点击“下一步”或者“自动播放”，按真实代码顺序观察混合检索和重排序过程。';
+    el('formatBox').textContent='等待执行...'; el('logBox').textContent='等待执行...'; el('lineTip').textContent='Line -'; el('phaseTip').textContent='等待开始'; el('chips').innerHTML=''; el('warnBox').textContent='当前页面完全基于你提供的新代码重做，重点修复代码行跳转和执行分支展示。';
+    document.querySelectorAll('.code-line').forEach(row=>row.classList.remove('current','done','branch','warn'));
+    el('progress').style.width='0%'; el('prevBtn').disabled=true; el('nextBtn').disabled=false; return;
+  }
+  const step = steps[current];
+  renderFlow(step.phase);
+  renderChips(step);
+  renderVars(step.vars || {});
+  renderDense(!!step.showDense);
+  renderSparse(!!step.showSparse);
+  renderRequests(step.showRequests);
+  renderHits(!!step.showHits);
+  renderParents(!!step.showParents);
+  renderRerank(!!step.showRerank);
+  renderFinal(!!step.showFinal);
+  highlightLines(current);
+  el('stepNum').textContent = current + 1;
+  el('stepTitle').textContent = step.title;
+  el('stepDesc').textContent = step.desc;
+  el('formatBox').textContent = step.fmt;
+  el('logBox').textContent = step.log;
+  el('lineTip').textContent = `Line ${step.line}`;
+  el('phaseTip').textContent = phases.find(p=>p.key===step.phase)?.name || step.phase;
+  el('warnBox').textContent = warningFor(step);
+  el('progress').style.width = `${((current+1)/steps.length)*100}%`;
+  el('prevBtn').disabled = current <= 0;
+  el('nextBtn').disabled = current >= steps.length - 1;
+}
+
+function next(){ const steps=getSteps(); if(current < steps.length-1){ current++; update(); } else stop(); }
+function prev(){ if(current>0){ current--; update(); } }
+function reset(){ stop(); current=-1; update(); window.scrollTo({top:0,behavior:'smooth'}); }
+function play(){ if(timer){ stop(); return; } el('playBtn').textContent='暂停'; timer=setInterval(()=>{ const steps=getSteps(); if(current >= steps.length-1){ stop(); return; } next(); }, Number(el('speedRange').value)); }
+function stop(){ if(timer){ clearInterval(timer); timer=null; } el('playBtn').textContent='自动播放'; }
+function jumpToLine(line){ const steps=getSteps(); const idx=steps.findIndex(s=>s.line===line || (s.extraLines||[]).includes(line)); if(idx>=0){ current=idx; update(); } }
+
+el('nextBtn').addEventListener('click',next);
+el('prevBtn').addEventListener('click',prev);
+el('resetBtn').addEventListener('click',reset);
+el('playBtn').addEventListener('click',play);
+el('branchSelect').addEventListener('change',()=>{ stop(); update(); });
+el('speedRange').addEventListener('input',()=>{ if(timer){ stop(); play(); }});
+
+renderCode();
+update();
+</script>
+</body>
+</html>

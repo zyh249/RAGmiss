@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BM25Search 代码执行可视化</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+        font-family: "Microsoft YaHei", Arial, sans-serif;
+        background: linear-gradient(135deg, #08111f, #111827 45%, #172033);
+        color: #e5f4ff;
+        min-height: 100vh;
+    }
+    .page { width: 96%; max-width: 1500px; margin: 0 auto; padding: 22px 0 34px; }
+    .header { text-align: center; margin-bottom: 16px; }
+    .header h1 { color: #38bdf8; font-size: 34px; text-shadow: 0 0 18px rgba(56,189,248,.45); }
+    .header p { color: #cbd5e1; margin-top: 8px; font-size: 16px; }
+    .controls {
+        position: sticky;
+        top: 0;
+        z-index: 50;
+        background: rgba(15, 23, 42, .96);
+        border: 1px solid rgba(56,189,248,.35);
+        border-radius: 16px;
+        padding: 14px;
+        margin-bottom: 16px;
+        backdrop-filter: blur(10px);
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        align-items: center;
+    }
+    .input-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    label { color: #7dd3fc; font-weight: 700; }
+    input, select {
+        background: #020617;
+        color: #e0f2fe;
+        border: 1px solid rgba(125,211,252,.35);
+        border-radius: 10px;
+        padding: 11px 12px;
+        font-size: 15px;
+        outline: none;
+    }
+    input { min-width: 260px; flex: 1; }
+    button {
+        border: none;
+        border-radius: 10px;
+        padding: 11px 18px;
+        color: white;
+        font-size: 15px;
+        cursor: pointer;
+        background: linear-gradient(135deg, #06b6d4, #2563eb);
+        box-shadow: 0 0 15px rgba(56,189,248,.25);
+    }
+    button:hover { transform: translateY(-1px); }
+    button.green { background: linear-gradient(135deg, #22c55e, #16a34a); }
+    button.purple { background: linear-gradient(135deg, #8b5cf6, #6366f1); }
+    button:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+    button.gray { background: linear-gradient(135deg, #64748b, #334155); }
+    .layout { display: grid; grid-template-columns: 1.02fr 1.08fr; gap: 16px; align-items: start; }
+    .panel {
+        background: rgba(15, 23, 42, .92);
+        border: 1px solid rgba(56,189,248,.26);
+        border-radius: 18px;
+        padding: 16px;
+        box-shadow: 0 0 28px rgba(0,0,0,.35);
+    }
+    .panel-title { display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; }
+    .panel-title h2 { color: #38bdf8; font-size: 22px; }
+    .badge { border: 1px solid rgba(56,189,248,.28); color:#7dd3fc; padding:4px 9px; border-radius:999px; font-size:12px; background:rgba(56,189,248,.08); }
+    .code-box {
+        height: 760px;
+        overflow: auto;
+        border-radius: 14px;
+        background: #030712;
+        border: 1px solid rgba(148,163,184,.18);
+        padding: 8px 0;
+    }
+    .code-line {
+        display: grid;
+        grid-template-columns: 48px 1fr;
+        gap: 10px;
+        padding: 4px 12px 4px 0;
+        font-family: Consolas, Monaco, "Courier New", monospace;
+        font-size: 13.5px;
+        line-height: 1.55;
+        color: #dbeafe;
+        border-left: 4px solid transparent;
+        white-space: pre;
+    }
+    .code-line .ln { color: #64748b; text-align: right; user-select: none; }
+    .code-line.active { background: rgba(14, 165, 233, .18); border-left-color: #38bdf8; color: #fff; }
+    .code-line.done { background: rgba(34, 197, 94, .045); }
+    .kw { color:#93c5fd; } .str { color:#86efac; } .cm { color:#94a3b8; } .fn { color:#facc15; } .num { color:#fda4af; }
+    .right-grid { display: grid; gap: 14px; }
+    .stage {
+        background: rgba(8, 47, 73, .48);
+        border: 1px solid rgba(125,211,252,.26);
+        border-radius: 14px;
+        padding: 14px;
+        line-height: 1.75;
+        min-height: 92px;
+    }
+    .stage h3 { color:#facc15; margin-bottom: 6px; font-size: 18px; }
+    .stage .main-text { color:#e0f2fe; }
+    .format-box {
+        margin-top: 12px;
+        padding: 12px;
+        border-radius: 12px;
+        background: rgba(2, 6, 23, .55);
+        border: 1px solid rgba(56, 189, 248, .22);
+        color: #dbeafe;
+        font-size: 13px;
+        line-height: 1.75;
+    }
+    .format-box .format-title { color:#7dd3fc; font-weight:700; margin-bottom:4px; }
+    .format-box code {
+        color:#facc15;
+        background: rgba(250, 204, 21, .08);
+        border: 1px solid rgba(250, 204, 21, .15);
+        border-radius: 6px;
+        padding: 1px 5px;
+    }
+    .code-content { white-space: pre; tab-size: 4; }
+    .state-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .state-card {
+        background: rgba(2,6,23,.66);
+        border: 1px solid rgba(148,163,184,.18);
+        border-radius: 14px;
+        padding: 12px;
+        min-height: 120px;
+    }
+    .state-card h3 { color:#7dd3fc; margin-bottom: 8px; font-size: 16px; }
+    .var { display:flex; justify-content:space-between; gap: 10px; border-bottom:1px dashed rgba(148,163,184,.16); padding: 5px 0; font-size: 13px; }
+    .var span:first-child { color:#cbd5e1; }
+    .var span:last-child { color:#facc15; text-align:right; }
+    .data-flow { display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .flow-node {
+        padding: 12px 8px;
+        border-radius: 14px;
+        text-align:center;
+        background: rgba(30,41,59,.8);
+        border: 1px solid rgba(148,163,184,.20);
+        color:#cbd5e1;
+        min-height: 68px;
+        display:flex; align-items:center; justify-content:center; flex-direction:column;
+    }
+    .flow-node.active { border-color:#38bdf8; color:white; box-shadow: 0 0 18px rgba(56,189,248,.35); transform:translateY(-2px); }
+    .flow-node.done { border-color:rgba(34,197,94,.65); color:#bbf7d0; }
+    .flow-node small { color:#94a3b8; margin-top:3px; }
+    table { width:100%; border-collapse:collapse; border-radius:12px; overflow:hidden; margin-top: 8px; }
+    th, td { border:1px solid rgba(148,163,184,.16); padding:8px; font-size:13px; text-align:center; }
+    th { color:#7dd3fc; background:rgba(8,47,73,.95); }
+    td { background:rgba(30,41,59,.58); color:#dbeafe; }
+    tr.hot td { background:rgba(14,116,144,.45); color:#fff; }
+    .mini { color:#94a3b8; font-size:13px; line-height:1.65; }
+    .tag { display:inline-block; padding:2px 7px; border-radius:999px; color:#7dd3fc; background:rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.3); margin:2px 3px; font-size:12px; }
+    .result-ok { color:#22c55e; font-weight:700; }
+    .result-warn { color:#facc15; font-weight:700; }
+    .result-bad { color:#fb7185; font-weight:700; }
+    .bar-row { margin: 9px 0; }
+    .bar-head { display:flex; justify-content:space-between; font-size:13px; margin-bottom: 4px; }
+    .bar-bg { height:16px; background:#111827; border:1px solid rgba(148,163,184,.2); border-radius:999px; overflow:hidden; }
+    .bar { height:100%; width:0; transition:width .45s ease; background:linear-gradient(90deg,#06b6d4,#22c55e); }
+    .bar.softmax { background:linear-gradient(90deg,#a855f7,#ec4899); }
+    @media(max-width: 1200px) { .layout { grid-template-columns: 1fr; } .code-box { height: 560px; } .state-grid { grid-template-columns: 1fr; } .controls { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <h1>BM25Search 代码执行可视化</h1>
+        <p>左侧高亮当前执行代码，右侧同步展示变量变化、Redis / MySQL 数据流、BM25 与 Softmax 计算结果</p>
+    </div>
+
+    <div class="controls">
+        <div class="input-row">
+            <label>查询 query：</label>
+            <input id="queryInput" value="什么是向量数据库" />
+            <label>场景：</label>
+            <select id="scenario">
+                <option value="miss_hit">缓存未命中，BM25 命中答案</option>
+                <option value="direct_cache">查询答案已在 Redis 缓存</option>
+                <option value="low_score">相关性不足，转人工 / 大模型</option>
+                <option value="invalid">无效查询</option>
+            </select>
+        </div>
+        <div class="btn-row">
+            <button id="autoBtn" onclick="autoRun()">自动执行</button>
+            <button id="manualBtn" class="green" onclick="manualNext()">手工下一行</button>
+            <button id="prevBtn" class="purple" onclick="manualPrev()">手工上一行</button>
+            <button id="resetBtn" class="gray" onclick="resetAll()">重置</button>
+        </div>
+    </div>
+
+    <div class="layout">
+        <div class="panel">
+            <div class="panel-title">
+                <h2>retrieval/bm25_search.py</h2>
+                <span class="badge">代码执行区</span>
+            </div>
+            <div class="code-box" id="codeBox"></div>
+        </div>
+
+        <div class="right-grid">
+            <div class="panel">
+                <div class="panel-title">
+                    <h2>当前执行说明</h2>
+                    <span class="badge" id="stepBadge">等待开始</span>
+                </div>
+                <div class="stage" id="stageBox">
+                    <h3>准备执行</h3>
+                    <div class="main-text">点击“自动执行”或“手工下一行”，观察代码每一步如何影响数据。</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">
+                    <h2>数据流</h2>
+                    <span class="badge">Redis / MySQL / BM25 / Softmax</span>
+                </div>
+                <div class="data-flow">
+                    <div class="flow-node" id="flowRedis">Redis<br><small>缓存原问题 / 答案</small></div>
+                    <div class="flow-node" id="flowMysql">MySQL<br><small>读取问题 / 答案</small></div>
+                    <div class="flow-node" id="flowBm25">BM25<br><small>计算原始分数</small></div>
+                    <div class="flow-node" id="flowSoftmax">Softmax<br><small>转成概率</small></div>
+                </div>
+            </div>
+
+            <div class="state-grid">
+                <div class="state-card">
+                    <h3>对象属性 self</h3>
+                    <div id="selfState"></div>
+                </div>
+                <div class="state-card">
+                    <h3>局部变量</h3>
+                    <div id="localState"></div>
+                </div>
+                <div class="state-card">
+                    <h3>返回结果</h3>
+                    <div id="returnState" class="mini">暂无返回。</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">
+                    <h2>模拟数据</h2>
+                    <span class="badge">缓存与数据库</span>
+                </div>
+                <div id="mockData"></div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-title">
+                    <h2>BM25 / Softmax 计算过程</h2>
+                    <span class="badge">得分变化</span>
+                </div>
+                <div id="calcArea" class="mini">执行到 search() 后会显示分词、BM25 分数、Softmax 概率与最终 Top1。</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const codeLines = [
+  {
+    "n": 1,
+    "t": "# retrieval/bm25_search.py",
+    "html": "<span class=\"cm\"># retrieval/bm25_search.py</span>"
+  },
+  {
+    "n": 2,
+    "t": "# 导入 BM25 算法",
+    "html": "<span class=\"cm\"># 导入 BM25 算法</span>"
+  },
+  {
+    "n": 3,
+    "t": "from rank_bm25 import BM25Okapi",
+    "html": "<span <span class=\"kw\">class</span>=\"kw\">from</span> rank_bm25 <span <span class=\"kw\">class</span>=\"kw\">import</span> BM25Okapi"
+  },
+  {
+    "n": 4,
+    "t": "# 导入数值计算库",
+    "html": "<span class=\"cm\"># 导入数值计算库</span>"
+  },
+  {
+    "n": 5,
+    "t": "import numpy as np",
+    "html": "<span <span class=\"kw\">class</span>=\"kw\">import</span> numpy <span <span class=\"kw\">class</span>=\"kw\">as</span> np"
+  },
+  {
+    "n": 6,
+    "t": "# 导入文本预处理",
+    "html": "<span class=\"cm\"># 导入文本预处理</span>"
+  },
+  {
+    "n": 7,
+    "t": "from utils.preprocess import preprocess_text",
+    "html": "<span <span class=\"kw\">class</span>=\"kw\">from</span> utils.preprocess <span <span class=\"kw\">class</span>=\"kw\">import</span> preprocess_text"
+  },
+  {
+    "n": 8,
+    "t": "# 导入日志",
+    "html": "<span class=\"cm\"># 导入日志</span>"
+  },
+  {
+    "n": 9,
+    "t": "from base import logger",
+    "html": "<span <span class=\"kw\">class</span>=\"kw\">from</span> base <span <span class=\"kw\">class</span>=\"kw\">import</span> logger"
+  },
+  {
+    "n": 10,
+    "t": "",
+    "html": ""
+  },
+  {
+    "n": 11,
+    "t": "class BM25Search:",
+    "html": "<span class=\"kw\">class</span> BM25Search:"
+  },
+  {
+    "n": 12,
+    "t": "    def __init__(self, redis_client, mysql_client):",
+    "html": "    <span class=\"kw\">def</span> <span class=\"fn\">__init__</span>(self, redis_client, mysql_client):"
+  },
+  {
+    "n": 13,
+    "t": "        # 初始化日志",
+    "html": "<span class=\"cm\"># 初始化日志</span>"
+  },
+  {
+    "n": 14,
+    "t": "        self.logger = logger",
+    "html": "        self.logger = logger"
+  },
+  {
+    "n": 15,
+    "t": "        # 初始化 Redis 客户端",
+    "html": "<span class=\"cm\"># 初始化 Redis 客户端</span>"
+  },
+  {
+    "n": 16,
+    "t": "        self.redis_client = redis_client",
+    "html": "        self.redis_client = redis_client"
+  },
+  {
+    "n": 17,
+    "t": "        # 初始化 MySQL 客户端",
+    "html": "<span class=\"cm\"># 初始化 MySQL 客户端</span>"
+  },
+  {
+    "n": 18,
+    "t": "        self.mysql_client = mysql_client",
+    "html": "        self.mysql_client = mysql_client"
+  },
+  {
+    "n": 19,
+    "t": "        # 初始化 BM25 模型",
+    "html": "<span class=\"cm\"># 初始化 BM25 模型</span>"
+  },
+  {
+    "n": 20,
+    "t": "        self.bm25 = None",
+    "html": "        self.bm25 = <span class=\"kw\">None</span>"
+  },
+  {
+    "n": 21,
+    "t": "        # 初始化问题列表",
+    "html": "<span class=\"cm\"># 初始化问题列表</span>"
+  },
+  {
+    "n": 22,
+    "t": "        self.questions = None",
+    "html": "        self.questions = <span class=\"kw\">None</span>"
+  },
+  {
+    "n": 23,
+    "t": "        # 初始化原始问题",
+    "html": "<span class=\"cm\"># 初始化原始问题</span>"
+  },
+  {
+    "n": 24,
+    "t": "        self.original_questions = None",
+    "html": "        self.original_questions = <span class=\"kw\">None</span>"
+  },
+  {
+    "n": 25,
+    "t": "        # 加载数据",
+    "html": "<span class=\"cm\"># 加载数据</span>"
+  },
+  {
+    "n": 26,
+    "t": "        self._load_data()",
+    "html": "        self.<span class=\"fn\">_load_data</span>()"
+  },
+  {
+    "n": 27,
+    "t": "",
+    "html": ""
+  },
+  {
+    "n": 28,
+    "t": "    def _load_data(self):",
+    "html": "    <span class=\"kw\">def</span> <span class=\"fn\">_load_data</span>(self):"
+  },
+  {
+    "n": 29,
+    "t": "        # 加载数据",
+    "html": "<span class=\"cm\"># 加载数据</span>"
+  },
+  {
+    "n": 30,
+    "t": "        original_key = \"qa_original_questions\"",
+    "html": "        original_key = &quot;qa_original_questions&quot;"
+  },
+  {
+    "n": 31,
+    "t": "        tokenized_key = \"qa_tokenized_questions\"",
+    "html": "        tokenized_key = &quot;qa_tokenized_questions&quot;"
+  },
+  {
+    "n": 32,
+    "t": "        # 从 Redis 获取原始问题",
+    "html": "<span class=\"cm\"># 从 Redis 获取原始问题</span>"
+  },
+  {
+    "n": 33,
+    "t": "        self.original_questions = self.redis_client.get_data(original_key)",
+    "html": "        self.original_questions = self.redis_client.<span class=\"fn\">get_data</span>(original_key)"
+  },
+  {
+    "n": 34,
+    "t": "        # 从 Redis 获取分词问题",
+    "html": "<span class=\"cm\"># 从 Redis 获取分词问题</span>"
+  },
+  {
+    "n": 35,
+    "t": "        tokenized_questions = self.redis_client.get_data(tokenized_key)",
+    "html": "        tokenized_questions = self.redis_client.<span class=\"fn\">get_data</span>(tokenized_key)"
+  },
+  {
+    "n": 36,
+    "t": "        # 如果 Redis 中没有数据，从 MySQL 加载",
+    "html": "<span class=\"cm\"># 如果 Redis 中没有数据，从 MySQL 加载</span>"
+  },
+  {
+    "n": 37,
+    "t": "        if not self.original_questions or not tokenized_questions:",
+    "html": "        <span class=\"kw\">if</span> <span class=\"kw\">not</span> self.original_questions <span class=\"kw\">or</span> <span class=\"kw\">not</span> tokenized_questions:"
+  },
+  {
+    "n": 38,
+    "t": "            # 从 MySQL 获取问题",
+    "html": "<span class=\"cm\"># 从 MySQL 获取问题</span>"
+  },
+  {
+    "n": 39,
+    "t": "            self.original_questions = self.mysql_client.fetch_questions()",
+    "html": "            self.original_questions = self.mysql_client.<span class=\"fn\">fetch_questions</span>()"
+  },
+  {
+    "n": 40,
+    "t": "            if not self.original_questions:",
+    "html": "            <span class=\"kw\">if</span> <span class=\"kw\">not</span> self.original_questions:"
+  },
+  {
+    "n": 41,
+    "t": "                # 记录无问题警告",
+    "html": "<span class=\"cm\"># 记录无问题警告</span>"
+  },
+  {
+    "n": 42,
+    "t": "                self.logger.warning(\"未加载到问题\")",
+    "html": "                self.logger.<span class=\"fn\">warning</span>(&quot;未加载到问题&quot;)"
+  },
+  {
+    "n": 43,
+    "t": "                return",
+    "html": "                <span class=\"kw\">return</span>"
+  },
+  {
+    "n": 44,
+    "t": "            # 分词问题",
+    "html": "<span class=\"cm\"># 分词问题</span>"
+  },
+  {
+    "n": 45,
+    "t": "            tokenized_questions = [preprocess_text(q[0]) for q in self.original_questions]",
+    "html": "            tokenized_questions = [<span class=\"fn\">preprocess_text</span>(q[<span class=\"num\">0</span>]) <span class=\"kw\">for</span> q <span class=\"kw\">in</span> self.original_questions]"
+  },
+  {
+    "n": 46,
+    "t": "            # 存储原始问题到 Redis",
+    "html": "<span class=\"cm\"># 存储原始问题到 Redis</span>"
+  },
+  {
+    "n": 47,
+    "t": "            self.redis_client.set_data(original_key, [(q[0]) for q in self.original_questions])",
+    "html": "            self.redis_client.<span class=\"fn\">set_data</span>(original_key, [(q[<span class=\"num\">0</span>]) <span class=\"kw\">for</span> q <span class=\"kw\">in</span> self.original_questions])"
+  },
+  {
+    "n": 48,
+    "t": "            # 存储分词问题到 Redis",
+    "html": "<span class=\"cm\"># 存储分词问题到 Redis</span>"
+  },
+  {
+    "n": 49,
+    "t": "            self.redis_client.set_data(tokenized_key, tokenized_questions)",
+    "html": "            self.redis_client.<span class=\"fn\">set_data</span>(tokenized_key, tokenized_questions)"
+  },
+  {
+    "n": 50,
+    "t": "        # 设置问题列表",
+    "html": "<span class=\"cm\"># 设置问题列表</span>"
+  },
+  {
+    "n": 51,
+    "t": "        self.questions = tokenized_questions",
+    "html": "        self.questions = tokenized_questions"
+  },
+  {
+    "n": 52,
+    "t": "        # 初始化 BM25 模型",
+    "html": "<span class=\"cm\"># 初始化 BM25 模型</span>"
+  },
+  {
+    "n": 53,
+    "t": "        self.bm25 = BM25Okapi(self.questions)",
+    "html": "        self.bm25 = <span class=\"fn\">BM25Okapi</span>(self.questions)"
+  },
+  {
+    "n": 54,
+    "t": "        # 记录 BM25 初始化成功",
+    "html": "<span class=\"cm\"># 记录 BM25 初始化成功</span>"
+  },
+  {
+    "n": 55,
+    "t": "        self.logger.info(\"BM25 模型初始化完成\")",
+    "html": "        self.logger.<span class=\"fn\">info</span>(&quot;BM25 模型初始化完成&quot;)"
+  },
+  {
+    "n": 56,
+    "t": "",
+    "html": ""
+  },
+  {
+    "n": 57,
+    "t": "    def _softmax(self, scores):",
+    "html": "    <span class=\"kw\">def</span> <span class=\"fn\">_softmax</span>(self, scores):"
+  },
+  {
+    "n": 58,
+    "t": "        # 计算 Softmax 分数",
+    "html": "<span class=\"cm\"># 计算 Softmax 分数</span>"
+  },
+  {
+    "n": 59,
+    "t": "        exp_scores = np.exp(scores - np.max(scores))",
+    "html": "        exp_scores = np.<span class=\"fn\">exp</span>(scores - np.<span class=\"fn\">max</span>(scores))"
+  },
+  {
+    "n": 60,
+    "t": "        # 返回归一化分数",
+    "html": "<span class=\"cm\"># 返回归一化分数</span>"
+  },
+  {
+    "n": 61,
+    "t": "        return exp_scores / exp_scores.sum()",
+    "html": "        <span class=\"kw\">return</span> exp_scores / exp_scores.<span class=\"fn\">sum</span>()"
+  },
+  {
+    "n": 62,
+    "t": "",
+    "html": ""
+  },
+  {
+    "n": 63,
+    "t": "    def search(self, query, threshold=0.85):",
+    "html": "    <span class=\"kw\">def</span> <span class=\"fn\">search</span>(self, query, threshold=<span class=\"num\">0.85</span>):"
+  },
+  {
+    "n": 64,
+    "t": "        # 搜索查询",
+    "html": "<span class=\"cm\"># 搜索查询</span>"
+  },
+  {
+    "n": 65,
+    "t": "        if not query or not isinstance(query, str):",
+    "html": "        <span class=\"kw\">if</span> <span class=\"kw\">not</span> query <span class=\"kw\">or</span> <span class=\"kw\">not</span> <span class=\"fn\">isinstance</span>(query, str):"
+  },
+  {
+    "n": 66,
+    "t": "            # 记录无效查询",
+    "html": "<span class=\"cm\"># 记录无效查询</span>"
+  },
+  {
+    "n": 67,
+    "t": "            self.logger.error(\"无效查询\")",
+    "html": "            self.logger.<span class=\"fn\">error</span>(&quot;无效查询&quot;)"
+  },
+  {
+    "n": 68,
+    "t": "            # 返回 None 和 False",
+    "html": "<span class=\"cm\"># 返回 None 和 False</span>"
+  },
+  {
+    "n": 69,
+    "t": "            return None, False",
+    "html": "            <span class=\"kw\">return</span> <span class=\"kw\">None</span>, <span class=\"kw\">False</span>"
+  },
+  {
+    "n": 70,
+    "t": "        # 检查 Redis 缓存",
+    "html": "<span class=\"cm\"># 检查 Redis 缓存</span>"
+  },
+  {
+    "n": 71,
+    "t": "        cached_answer = self.redis_client.get_answer(query)",
+    "html": "        cached_answer = self.redis_client.<span class=\"fn\">get_answer</span>(query)"
+  },
+  {
+    "n": 72,
+    "t": "        if cached_answer:",
+    "html": "        <span class=\"kw\">if</span> cached_answer:"
+  },
+  {
+    "n": 73,
+    "t": "            # 返回缓存答案",
+    "html": "<span class=\"cm\"># 返回缓存答案</span>"
+  },
+  {
+    "n": 74,
+    "t": "            return cached_answer, False",
+    "html": "            <span class=\"kw\">return</span> cached_answer, <span class=\"kw\">False</span>"
+  },
+  {
+    "n": 75,
+    "t": "        try:",
+    "html": "        <span class=\"kw\">try</span>:"
+  },
+  {
+    "n": 76,
+    "t": "            # 分词查询",
+    "html": "<span class=\"cm\"># 分词查询</span>"
+  },
+  {
+    "n": 77,
+    "t": "            query_tokens = preprocess_text(query)",
+    "html": "            query_tokens = <span class=\"fn\">preprocess_text</span>(query)"
+  },
+  {
+    "n": 78,
+    "t": "            # 计算 BM25 分数",
+    "html": "<span class=\"cm\"># 计算 BM25 分数</span>"
+  },
+  {
+    "n": 79,
+    "t": "            scores = self.bm25.get_scores(query_tokens)",
+    "html": "            scores = self.bm25.<span class=\"fn\">get_scores</span>(query_tokens)"
+  },
+  {
+    "n": 80,
+    "t": "            # 计算 Softmax 分数",
+    "html": "<span class=\"cm\"># 计算 Softmax 分数</span>"
+  },
+  {
+    "n": 81,
+    "t": "            softmax_scores = self._softmax(scores)",
+    "html": "            softmax_scores = self.<span class=\"fn\">_softmax</span>(scores)"
+  },
+  {
+    "n": 82,
+    "t": "            # 获取最高分索引",
+    "html": "<span class=\"cm\"># 获取最高分索引</span>"
+  },
+  {
+    "n": 83,
+    "t": "            best_idx = softmax_scores.argmax()",
+    "html": "            best_idx = softmax_scores.<span class=\"fn\">argmax</span>()"
+  },
+  {
+    "n": 84,
+    "t": "            # 获取最高分",
+    "html": "<span class=\"cm\"># 获取最高分</span>"
+  },
+  {
+    "n": 85,
+    "t": "            best_score = softmax_scores[best_idx]",
+    "html": "            best_score = softmax_scores[best_idx]"
+  },
+  {
+    "n": 86,
+    "t": "            # 检查是否超过阈值",
+    "html": "<span class=\"cm\"># 检查是否超过阈值</span>"
+  },
+  {
+    "n": 87,
+    "t": "            if best_score >= threshold:",
+    "html": "            <span class=\"kw\">if</span> best_score &gt;= threshold:"
+  },
+  {
+    "n": 88,
+    "t": "                # 获取原始问题",
+    "html": "<span class=\"cm\"># 获取原始问题</span>"
+  },
+  {
+    "n": 89,
+    "t": "                original_question = self.original_questions[best_idx]",
+    "html": "                original_question = self.original_questions[best_idx]"
+  },
+  {
+    "n": 90,
+    "t": "                # 获取答案",
+    "html": "<span class=\"cm\"># 获取答案</span>"
+  },
+  {
+    "n": 91,
+    "t": "                redis_result = self.redis_client.get_answer(original_question)",
+    "html": "                redis_result = self.redis_client.<span class=\"fn\">get_answer</span>(original_question)"
+  },
+  {
+    "n": 92,
+    "t": "                # 获取答案",
+    "html": "<span class=\"cm\"># 获取答案</span>"
+  },
+  {
+    "n": 93,
+    "t": "                if redis_result:",
+    "html": "                <span class=\"kw\">if</span> redis_result:"
+  },
+  {
+    "n": 94,
+    "t": "                    answer = redis_result",
+    "html": "                    answer = redis_result"
+  },
+  {
+    "n": 95,
+    "t": "                    logger.info(f'从redis中获取到了问题的答案:{answer}')",
+    "html": "                    logger.<span class=\"fn\">info</span>(f&#x27;从redis中获取到了问题的答案:{answer}&#x27;)"
+  },
+  {
+    "n": 96,
+    "t": "                else:",
+    "html": "                <span class=\"kw\">else</span>:"
+  },
+  {
+    "n": 97,
+    "t": "                    answer = self.mysql_client.fetch_answer(original_question)",
+    "html": "                    answer = self.mysql_client.<span class=\"fn\">fetch_answer</span>(original_question)"
+  },
+  {
+    "n": 98,
+    "t": "                    logger.info(f'从mysql中获取到了问题的答案:{answer}')",
+    "html": "                    logger.<span class=\"fn\">info</span>(f&#x27;从mysql中获取到了问题的答案:{answer}&#x27;)"
+  },
+  {
+    "n": 99,
+    "t": "",
+    "html": ""
+  },
+  {
+    "n": 100,
+    "t": "                if answer:",
+    "html": "                <span class=\"kw\">if</span> answer:"
+  },
+  {
+    "n": 101,
+    "t": "                    # 缓存答案",
+    "html": "<span class=\"cm\"># 缓存答案</span>"
+  },
+  {
+    "n": 102,
+    "t": "                    self.redis_client.set_data(f\"answer:{query}\", answer)",
+    "html": "                    self.redis_client.<span class=\"fn\">set_data</span>(f&quot;answer:{query}&quot;, answer)"
+  },
+  {
+    "n": 103,
+    "t": "                    # 记录搜索成功",
+    "html": "<span class=\"cm\"># 记录搜索成功</span>"
+  },
+  {
+    "n": 104,
+    "t": "                    self.logger.info(f\"搜索成功，Softmax 相似度: {best_score:.3f}\")",
+    "html": "                    self.logger.<span class=\"fn\">info</span>(f&quot;搜索成功，Softmax 相似度: {best_score:.3f}&quot;)"
+  },
+  {
+    "n": 105,
+    "t": "                    # 返回答案和 False",
+    "html": "<span class=\"cm\"># 返回答案和 False</span>"
+  },
+  {
+    "n": 106,
+    "t": "                    return answer, False",
+    "html": "                    <span class=\"kw\">return</span> answer, <span class=\"kw\">False</span>"
+  },
+  {
+    "n": 107,
+    "t": "            # 记录无可靠答案",
+    "html": "<span class=\"cm\"># 记录无可靠答案</span>"
+  },
+  {
+    "n": 108,
+    "t": "            self.logger.info(f\"未找到可靠答案，最高 Softmax 相似度: {best_score:.3f}\")",
+    "html": "            self.logger.<span class=\"fn\">info</span>(f&quot;未找到可靠答案，最高 Softmax 相似度: {best_score:.3f}&quot;)"
+  },
+  {
+    "n": 109,
+    "t": "            # 返回 None 和 True",
+    "html": "<span class=\"cm\"># 返回 None 和 True</span>"
+  },
+  {
+    "n": 110,
+    "t": "            return None, True",
+    "html": "            <span class=\"kw\">return</span> <span class=\"kw\">None</span>, <span class=\"kw\">True</span>"
+  },
+  {
+    "n": 111,
+    "t": "        except Exception as e:",
+    "html": "        <span class=\"kw\">except</span> Exception <span <span class=\"kw\">class</span>=\"kw\">as</span> e:"
+  },
+  {
+    "n": 112,
+    "t": "            # 记录搜索失败",
+    "html": "<span class=\"cm\"># 记录搜索失败</span>"
+  },
+  {
+    "n": 113,
+    "t": "            self.logger.error(f\"搜索失败: {e}\")",
+    "html": "            self.logger.<span class=\"fn\">error</span>(f&quot;搜索失败: {e}&quot;)"
+  },
+  {
+    "n": 114,
+    "t": "            # 返回 None 和 True",
+    "html": "<span class=\"cm\"># 返回 None 和 True</span>"
+  },
+  {
+    "n": 115,
+    "t": "            return None, True",
+    "html": "            <span class=\"kw\">return</span> <span class=\"kw\">None</span>, <span class=\"kw\">True</span>"
+  }
+];
+
+const mockQuestions = [
+  ['什么是向量数据库'],
+  ['MySQL是什么'],
+  ['Embedding模型有什么作用'],
+  ['如何查询天气']
+];
+const mockTokenized = [
+  ['向量','数据库'],
+  ['mysql'],
+  ['embedding','模型'],
+  ['查询','天气']
+];
+const mockAnswers = {
+  '什么是向量数据库': '向量数据库是专门存储和检索向量数据的数据库，常用于 RAG 和语义搜索。',
+  'MySQL是什么': 'MySQL 是关系型数据库，适合结构化数据存储和 SQL 查询。',
+  'Embedding模型有什么作用': 'Embedding 模型可以把文本转换成向量，用于语义相似度计算。',
+  '如何查询天气': '可以通过天气接口或天气查询系统获取城市天气信息。',
+  '什么是向量数据库_DIRECT': '【Redis缓存】向量数据库用于语义检索、RAG 和推荐系统。'
+};
+let state, steps, stepIndex, autoTimer, autoRunning = false;
+
+function getScenario() {
+  const select = document.getElementById('scenario');
+  if (!select || !select.value) return 'miss_hit';
+  return select.value;
+}
+
+function ensureReady() {
+  if (typeof stepIndex !== 'number' || Number.isNaN(stepIndex)) stepIndex = 0;
+  if (!Array.isArray(steps) || steps.length === 0 || !state) {
+    initState();
+    buildSteps();
+    renderStates();
+    renderMockData();
+    renderCalc();
+    updateButtons();
+  }
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function highlightPythonLine(rawLine) {
+  // 只基于原始文本 l.t 渲染，不再使用预生成 html，避免 span 标签被二次高亮导致代码错乱。
+  const indentMatch = rawLine.match(/^\s*/);
+  const indent = indentMatch ? indentMatch[0] : '';
+  let code = rawLine.slice(indent.length);
+
+  if (code.trim().startsWith('#')) {
+    return indent.replace(/ /g, '&nbsp;') + `<span class="cm">${escapeHtml(code)}</span>`;
+  }
+
+  let escaped = escapeHtml(code);
+
+  // 字符串先占位，避免关键字规则影响字符串内容。
+  const strings = [];
+  escaped = escaped.replace(/(&#39;[^&#]*?&#39;|&quot;[^&]*?&quot;|f&#39;[^&#]*?&#39;|f&quot;[^&]*?&quot;)/g, (m) => {
+    const id = strings.length;
+    strings.push(`<span class="str">${m}</span>`);
+    return `@@STR_${id}@@`;
+  });
+
+  escaped = escaped
+    .replace(/\b(from|import|as|class|def|if|else|elif|try|except|return|for|in|or|and|not|is|None|True|False)\b/g, '<span class="kw">$1</span>')
+    .replace(/\b(\d+(?:\.\d+)?)\b/g, '<span class="num">$1</span>')
+    .replace(/\b([A-Za-z_]\w*)(?=\()/g, '<span class="fn">$1</span>');
+
+  escaped = escaped.replace(/@@STR_(\d+)@@/g, (_, i) => strings[Number(i)]);
+  return indent.replace(/ /g, '&nbsp;') + escaped;
+}
+
+function renderCode() {
+  const box = document.getElementById('codeBox');
+  box.innerHTML = codeLines.map((l, i) => {
+    const codeHtml = highlightPythonLine(l.t);
+    return `<div class="code-line" id="cl${i}" data-line="${l.n}"><span class="ln">${l.n}</span><span class="code-content">${codeHtml}</span></div>`;
+  }).join('');
+}
+let currentLine = null;
+function lineIndex(n) { return codeLines.findIndex(x => x.n === n); }
+function exampleQuestionValue() {
+  if (state && state.self && state.self.original_questions) {
+    const q = state.self.original_questions[0];
+    return Array.isArray(q) ? JSON.stringify(q) : JSON.stringify(q || '什么是向量数据库');
+  }
+  return '"什么是向量数据库"';
+}
+function dataFormatHint(line) {
+  const q = document.getElementById('queryInput') ? document.getElementById('queryInput').value : '什么是向量数据库';
+  const hint = {
+    12:  ['初始化参数格式', '<code>redis_client</code>：Redis 客户端对象；<code>mysql_client</code>：MySQL 客户端对象。'],
+    14: ['对象属性格式', '<code>self.logger</code>：日志对象，用于 <code>info()</code>、<code>warning()</code>、<code>error()</code>。'],
+    16: ['对象属性格式', '<code>self.redis_client</code>：Redis 客户端对象，常用方法：<code>get_data(key)</code>、<code>set_data(key, value)</code>、<code>get_answer(query)</code>。'],
+    18: ['对象属性格式', '<code>self.mysql_client</code>：MySQL 客户端对象，常用方法：<code>fetch_questions()</code>、<code>fetch_answer(question)</code>。'],
+    20: ['对象属性格式', '<code>self.bm25</code>：初始化前是 <code>None</code>，初始化后是 <code>BM25Okapi</code> 对象。'],
+    22: ['对象属性格式', '<code>self.questions</code>：初始化前是 <code>None</code>，后面变成 <code>list[list[str]]</code>，例如 <code>[["向量","数据库"], ["Redis","缓存"]]</code>。'],
+    24: ['对象属性格式', '<code>self.original_questions</code>：初始化前是 <code>None</code>，后面通常是 <code>list[str]</code> 或 MySQL 返回的 <code>list[tuple]</code>。建议统一成 <code>list[str]</code>。'],
+    30: ['局部变量格式', '<code>original_key</code>：字符串 <code>str</code>，值为 <code>"qa_original_questions"</code>。'],
+    31: ['局部变量格式', '<code>tokenized_key</code>：字符串 <code>str</code>，值为 <code>"qa_tokenized_questions"</code>。'],
+    33: ['Redis 读取结果格式', '<code>self.original_questions</code>：缓存未命中为 <code>None</code>；命中时建议为 <code>list[str]</code>，例如 <code>["什么是向量数据库", "Redis有什么作用"]</code>。'],
+    35: ['Redis 读取结果格式', '<code>tokenized_questions</code>：缓存未命中为 <code>None</code>；命中时为 <code>list[list[str]]</code>，例如 <code>[["向量","数据库"], ["Redis","缓存"]]</code>。'],
+    37: ['条件判断数据格式', '<code>self.original_questions</code> 和 <code>tokenized_questions</code> 只要有一个为空，就从 MySQL 重新加载。'],
+    39: ['MySQL 返回格式', '<code>fetch_questions()</code> 常见返回：<code>list[tuple]</code>，例如 <code>[("什么是向量数据库",), ("Redis有什么作用",)]</code>。'],
+    45: ['分词结果格式', '<code>tokenized_questions</code>：<code>list[list[str]]</code>。每个问题会被处理成一个词列表，例如 <code>preprocess_text(q[0]) -> ["向量", "数据库"]</code>。'],
+    47: ['Redis 写入格式', '<code>qa_original_questions</code> 建议写成 <code>list[str]</code>：<code>["什么是向量数据库", "Redis有什么作用"]</code>。'],
+    49: ['Redis 写入格式', '<code>qa_tokenized_questions</code> 写入 <code>list[list[str]]</code>：<code>[["向量","数据库"], ["Redis","缓存"]]</code>。'],
+    51: ['对象属性格式', '<code>self.questions</code>：<code>list[list[str]]</code>，这是 BM25 的语料库，每个内部列表代表一条问题的分词结果。'],
+    53: ['模型输入格式', '<code>BM25Okapi(self.questions)</code> 的输入必须是 <code>list[list[str]]</code>，不是原始字符串列表。'],
+    59: ['Softmax 中间变量格式', '<code>scores</code>：一维数值数组，例如 <code>np.array([3.2, 0.4, 1.1, 0.0])</code>；<code>exp_scores</code> 也是一维数组。'],
+    61: ['Softmax 返回格式', '<code>return</code>：一维概率数组，所有元素相加等于 <code>1</code>，例如 <code>[0.82, 0.05, 0.10, 0.03]</code>。'],
+    63: ['方法参数格式', `<code>query</code>：字符串 <code>str</code>，当前值：<code>${q || ''}</code>；<code>threshold</code>：浮点数 <code>float</code>，默认 <code>0.85</code>。`],
+    65: ['参数校验格式', '<code>query</code> 必须是非空字符串。空字符串、<code>None</code> 或非字符串都会被判定为无效查询。'],
+    69: ['返回值格式', '<code>return None, False</code>：返回的是二元组 <code>tuple[None, bool]</code>。'],
+    71: ['Redis 答案缓存格式', '<code>cached_answer</code>：缓存未命中为 <code>None</code>；命中时为答案字符串 <code>str</code>。Key 通常是 <code>answer:用户原始问题</code>。'],
+    74: ['返回值格式', '<code>return cached_answer, False</code>：返回 <code>tuple[str, bool]</code>，表示已从缓存找到答案。'],
+    77: ['查询分词格式', '<code>query_tokens</code>：<code>list[str]</code>，例如 <code>["向量", "数据库"]</code>。这是传给 BM25 的查询格式。'],
+    79: ['BM25 输出格式', '<code>scores</code>：一维数组，长度等于候选问题数量。例如 4 条问题会得到 <code>[3.2, 0.4, 1.1, 0.0]</code>。'],
+    81: ['Softmax 输出格式', '<code>softmax_scores</code>：一维概率数组，长度与 <code>scores</code> 相同，所有概率之和为 <code>1</code>。'],
+    83: ['索引格式', '<code>best_idx</code>：整数 <code>int</code>，表示概率最高的问题下标。例如 <code>0</code> 表示第 1 条候选问题。'],
+    85: ['最高分格式', '<code>best_score</code>：浮点数 <code>float</code>，例如 <code>0.92</code>，表示 Top1 文档的 Softmax 概率。'],
+    87: ['阈值判断格式', '<code>best_score >= threshold</code>：如果为 <code>True</code>，说明结果足够可靠；否则进入兜底流程。'],
+    89: ['Top1 原问题格式', '<code>original_question</code>：建议为字符串 <code>str</code>。如果 MySQL 返回的是元组，需要使用 <code>self.original_questions[best_idx][0]</code> 取出字符串。'],
+    91: ['Redis 标准答案格式', '<code>redis_result</code>：标准问题对应的答案，未命中为 <code>None</code>，命中为 <code>str</code>。'],
+    97: ['MySQL 答案格式', '<code>answer</code>：字符串 <code>str</code>，例如 <code>"向量数据库用于存储和检索向量数据。"</code>。'],
+    102:['Redis 写入答案格式', '<code>answer:query</code> → <code>str</code>。例如 <code>answer:什么是向量数据库</code> → <code>向量数据库用于...</code>。'],
+    106:['返回值格式', '<code>return answer, False</code>：返回 <code>tuple[str, bool]</code>，表示找到答案，不需要后续兜底。'],
+    110:['返回值格式', '<code>return None, True</code>：返回 <code>tuple[None, bool]</code>，<code>True</code> 表示需要进入兜底流程。']
+  };
+  const x = hint[line];
+  if (!x) return '';
+  return `<div class="format-box"><div class="format-title">当前数据格式</div><div><strong>${x[0]}：</strong>${x[1]}</div></div>`;
+}
+function setLine(n) {
+  currentLine = n;
+  document.querySelectorAll('.code-line').forEach(el => el.classList.remove('active'));
+  const idx = lineIndex(n);
+  if (idx >= 0) {
+    const el = document.getElementById('cl'+idx);
+    const box = document.getElementById('codeBox');
+    el.classList.add('active');
+    el.classList.add('done');
+
+    // 只滚动左侧代码框，不滚动整个页面，避免按钮区被顶出屏幕。
+    const targetTop = el.offsetTop - box.clientHeight / 2 + el.clientHeight / 2;
+    box.scrollTo({ top: Math.max(0, targetTop), behavior: 'smooth' });
+  }
+}
+function clearFlow() { document.querySelectorAll('.flow-node').forEach(n => n.classList.remove('active')); }
+function flow(id, done=false) { clearFlow(); const el=document.getElementById(id); el.classList.add(done?'done':'active'); }
+function fmt(v) {
+  if (v === null) return 'None';
+  if (v === undefined) return '-';
+  if (Array.isArray(v)) return JSON.stringify(v);
+  if (typeof v === 'number') return v.toFixed(4);
+  if (typeof v === 'boolean') return String(v);
+  return String(v);
+}
+function stateRows(obj) {
+  return Object.entries(obj).map(([k,v]) => `<div class="var"><span>${k}</span><span>${fmt(v)}</span></div>`).join('');
+}
+function renderStates() {
+  document.getElementById('selfState').innerHTML = stateRows({
+    logger: state.self.logger,
+    redis_client: state.self.redis_client,
+    mysql_client: state.self.mysql_client,
+    bm25: state.self.bm25,
+    questions: state.self.questions ? '已加载 ' + state.self.questions.length + ' 条' : 'None',
+    original_questions: state.self.original_questions ? '已加载 ' + state.self.original_questions.length + ' 条' : 'None'
+  });
+  document.getElementById('localState').innerHTML = stateRows(state.local);
+  document.getElementById('returnState').innerHTML = state.returned ? state.returnHtml : '<span class="mini">暂无返回。</span>';
+}
+function renderMockData() {
+  const redisKeys = Object.keys(state.redis);
+  const redisRows = redisKeys.length ? redisKeys.map(k => `<tr><td>${k}</td><td>${JSON.stringify(state.redis[k])}</td></tr>`).join('') : '<tr><td colspan="2">暂无缓存</td></tr>';
+  const mysqlRows = mockQuestions.map((q,i) => `<tr><td>${i}</td><td>${q[0]}</td><td>${mockAnswers[q[0]]}</td></tr>`).join('');
+  document.getElementById('mockData').innerHTML = `
+    <div class="mini"><span class="tag">Redis</span> 用来缓存问题列表、分词结果和查询答案；<span class="tag">MySQL</span> 是最终问题与答案来源。</div>
+    <table><tr><th>Redis Key</th><th>Value</th></tr>${redisRows}</table>
+    <table><tr><th>索引</th><th>MySQL 问题</th><th>MySQL 答案</th></tr>${mysqlRows}</table>
+  `;
+}
+function renderCalc() {
+  if (!state.calcReady) {
+    document.getElementById('calcArea').innerHTML = '<div class="mini">执行到 search() 后会显示分词、BM25 分数、Softmax 概率与最终 Top1。</div>';
+    return;
+  }
+
+  const scores = Array.isArray(state.scores) ? state.scores : [];
+  const softmaxScores = Array.isArray(state.softmax_scores) ? state.softmax_scores : [];
+  const queryTokens = Array.isArray(state.local.query_tokens) ? state.local.query_tokens : [];
+
+  const scoreRows = scores.map((s,i)=> {
+    const sm = typeof softmaxScores[i] === 'number' ? (softmaxScores[i] * 100).toFixed(2) + '%' : '待计算';
+    return `<tr class="${i===state.best_idx?'hot':''}"><td>Doc ${i+1}</td><td>${mockQuestions[i][0]}</td><td>${s.toFixed(4)}</td><td>${sm}</td></tr>`;
+  }).join('');
+
+  const bm25Bars = scores.map((s,i)=> {
+    const max = Math.max(...scores, 0.0001);
+    const pct = Math.max(3, s / max * 100);
+    return `<div class="bar-row"><div class="bar-head"><span>Doc ${i+1} BM25</span><span>${s.toFixed(4)}</span></div><div class="bar-bg"><div class="bar" style="width:${pct}%"></div></div></div>`;
+  }).join('');
+
+  const smBars = softmaxScores.map((s,i)=> `<div class="bar-row"><div class="bar-head"><span>Doc ${i+1} Softmax</span><span>${(s*100).toFixed(2)}%</span></div><div class="bar-bg"><div class="bar softmax" style="width:${Math.max(3,s*100)}%"></div></div></div>`).join('');
+
+  const topText = (typeof state.best_idx === 'number' && typeof state.best_score === 'number')
+    ? `best_idx = ${state.best_idx}，best_score = ${(state.best_score*100).toFixed(2)}%，threshold = ${(state.local.threshold*100).toFixed(0)}%。`
+    : 'Top1 结果待计算。执行到 argmax 和 best_score 后会显示最终判断。';
+
+  document.getElementById('calcArea').innerHTML = `
+    <div class="mini">查询分词：${queryTokens.map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+    <table><tr><th>文档</th><th>原始问题</th><th>BM25 原始分数</th><th>Softmax 概率</th></tr>${scoreRows}</table>
+    ${bm25Bars}${smBars}
+    <div class="stage" style="margin-top:10px;min-height:auto;">
+      <h3>Top1 判断</h3>
+      <div class="main-text">${topText}</div>
+    </div>
+  `;
+}
+function stage(title, html, badge) {
+  const formatHtml = dataFormatHint(currentLine);
+  document.getElementById('stageBox').innerHTML = `<h3>${title}</h3><div class="main-text">${html}</div>${formatHtml}`;
+  document.getElementById('stepBadge').textContent = badge || title;
+}
+function preprocessText(query) {
+  const lower = query.toLowerCase();
+  if (lower.includes('向量') && lower.includes('数据库')) return ['向量','数据库'];
+  if (lower.includes('天气')) return ['查询','天气'];
+  if (lower.includes('mysql')) return ['mysql'];
+  if (lower.includes('embedding')) return ['embedding','模型'];
+  return lower.replace(/[？?，,。\.]/g,'').split(/\s+/).filter(Boolean);
+}
+function calcScores(tokens) {
+  const q = tokens.join(' ');
+  if (getScenario() === 'low_score') return [0.12,0.10,0.08,0.06];
+  if (tokens.includes('向量') && tokens.includes('数据库')) return [2.72,0.76,0.92,0.02];
+  if (tokens.includes('查询') && tokens.includes('天气')) return [0.05,0.08,0.02,2.45];
+  if (tokens.includes('mysql')) return [0.20,2.38,0.08,0.02];
+  return [0.1,0.08,0.09,0.04];
+}
+function softmax(scores) {
+  const max = Math.max(...scores);
+  const exps = scores.map(s=>Math.exp(s-max));
+  const sum = exps.reduce((a,b)=>a+b,0);
+  return exps.map(e=>e/sum);
+}
+function initState() {
+  const scenario = getScenario();
+  const inputQuery = document.getElementById('queryInput').value;
+
+  state = {
+    self: { logger:'logger对象', redis_client:'Redis客户端', mysql_client:'MySQL客户端', bm25:null, questions:null, original_questions:null },
+    local: {}, redis: {}, returned:false, returnHtml:'', calcReady:false,
+    scores: [], softmax_scores: [], best_idx:null, best_score:null
+  };
+
+  // 场景预置数据：保证动画执行路径和真实代码分支一致。
+  // direct_cache 表示“查询答案已在 Redis 缓存”，同时也预置问题列表缓存，
+  // 这样 _load_data() 会跳过 MySQL 加载，search() 会在 cached_answer 分支直接 return。
+  if (scenario === 'direct_cache') {
+    state.redis.qa_original_questions = mockQuestions.map(q => q[0]);
+    state.redis.qa_tokenized_questions = mockTokenized;
+    state.redis['answer:' + inputQuery] = mockAnswers['什么是向量数据库_DIRECT'];
+  }
+}
+function returnResult(answer, needFallback, kind) {
+  state.returned = true;
+  const cls = kind === 'ok' ? 'result-ok' : kind === 'bad' ? 'result-bad' : 'result-warn';
+  state.returnHtml = `<div class="var"><span>answer</span><span class="${cls}">${answer === null ? 'None' : answer}</span></div><div class="var"><span>need_fallback</span><span>${needFallback}</span></div>`;
+  renderStates();
+}
+function buildSteps() {
+  const scenario = getScenario();
+  const inputQuery = document.getElementById('queryInput').value;
+  const invalid = scenario === 'invalid' || !inputQuery || !inputQuery.trim();
+  const hasQuestionCache = scenario === 'direct_cache';
+  steps = [];
+  function add(line, action) { steps.push({line, action}); }
+  add(3,()=>stage('导入 BM25Okapi', '从 rank_bm25 包中导入 BM25Okapi。后面 <code>BM25Okapi(self.questions)</code> 会基于问题列表建立 BM25 检索器。','import'));
+  add(5,()=>stage('导入 numpy', 'numpy 用来计算 Softmax：<code>np.exp()</code>、<code>np.max()</code>、数组除法都由它完成。','import'));
+  add(7,()=>stage('导入文本预处理函数', 'preprocess_text 会把原始中文问题变成分词列表。例如：什么是向量数据库 → [向量, 数据库]。','import'));
+  add(11,()=>stage('定义 BM25Search 类', '这个类把 Redis、MySQL、BM25 和 Softmax 搜索流程封装到一起。','class'));
+  add(12,()=>{ state.local={redis_client:'传入Redis对象', mysql_client:'传入MySQL对象'}; stage('进入 __init__ 初始化方法', '创建 BM25Search 对象时，先保存客户端，再加载数据并初始化 BM25 模型。','__init__'); });
+  add(14,()=>{ state.self.logger='logger对象'; stage('保存日志对象', '<code>self.logger = logger</code>，后续可以记录加载、搜索成功、失败等信息。','__init__'); });
+  add(16,()=>{ state.self.redis_client='Redis客户端'; flow('flowRedis'); stage('保存 Redis 客户端', 'Redis 用于缓存问题列表、分词结果和查询答案。','__init__'); });
+  add(18,()=>{ state.self.mysql_client='MySQL客户端'; flow('flowMysql'); stage('保存 MySQL 客户端', 'MySQL 用于读取原始问题和答案。','__init__'); });
+  add(20,()=>{ state.self.bm25=null; stage('BM25 模型先置空', '对象刚创建时还没有模型，等问题数据加载完成后再初始化。','__init__'); });
+  add(22,()=>{ state.self.questions=null; stage('分词问题列表先置空', '<code>self.questions</code> 后面会保存分词后的问题列表。','__init__'); });
+  add(24,()=>{ state.self.original_questions=null; stage('原始问题列表先置空', '<code>self.original_questions</code> 后面会保存 MySQL 中的原始问题。','__init__'); });
+  add(26,()=>stage('调用 _load_data()', '初始化阶段立刻加载数据：先查 Redis，Redis 没有再查 MySQL。','load_data'));
+  add(28,()=>stage('进入 _load_data()', '开始执行数据加载逻辑。','load_data'));
+  add(30,()=>{ state.local={original_key:'qa_original_questions'}; stage('设置原始问题缓存 key', 'Redis 中用 <code>qa_original_questions</code> 保存原始问题列表。','load_data'); });
+  add(31,()=>{ state.local.tokenized_key='qa_tokenized_questions'; stage('设置分词问题缓存 key', 'Redis 中用 <code>qa_tokenized_questions</code> 保存分词后的问题列表。','load_data'); });
+  add(33,()=>{ flow('flowRedis'); state.self.original_questions=state.redis.qa_original_questions || null; stage('从 Redis 读取原始问题', state.self.original_questions ? 'Redis 命中原始问题列表。' : 'Redis 暂无原始问题列表，结果为 None。','Redis'); });
+  add(35,()=>{ flow('flowRedis'); state.local.tokenized_questions=state.redis.qa_tokenized_questions || null; stage('从 Redis 读取分词问题', state.local.tokenized_questions ? 'Redis 命中分词问题列表。' : 'Redis 暂无分词问题列表，结果为 None。','Redis'); });
+  add(37,()=>stage('判断 Redis 是否已有完整数据',
+    (state.self.original_questions && state.local.tokenized_questions)
+      ? 'Redis 已经同时存在原始问题列表和分词问题列表，因此不会进入 MySQL 加载分支，直接继续初始化 BM25。'
+      : 'Redis 中原始问题或分词问题有一个为空，因此进入 MySQL 加载流程。',
+    'if'));
+
+  if (!hasQuestionCache) {
+    add(39,()=>{ flow('flowMysql'); state.self.original_questions=mockQuestions; stage('从 MySQL 获取问题列表', '调用 <code>fetch_questions()</code>，得到 4 条 FAQ 问题。','MySQL'); });
+    add(40,()=>stage('检查 MySQL 是否有问题数据', '当前 MySQL 返回了问题列表，因此不会进入“未加载到问题”的分支。','if'));
+    add(45,()=>{ state.local.tokenized_questions=mockTokenized; stage('对每个问题执行分词', '例如：什么是向量数据库 → [向量, 数据库]。分词后的问题列表将用于 BM25 建模。','preprocess'); });
+    add(47,()=>{ flow('flowRedis'); state.redis.qa_original_questions=mockQuestions.map(q=>q[0]); stage('把原始问题写入 Redis', '下次启动时可以直接从 Redis 取，不必再查 MySQL。','Redis'); });
+    add(49,()=>{ flow('flowRedis'); state.redis.qa_tokenized_questions=mockTokenized; stage('把分词问题写入 Redis', '缓存分词结果，减少重复预处理开销。','Redis'); });
+  }
+
+  add(51,()=>{ state.self.questions=state.local.tokenized_questions || mockTokenized; stage('设置 self.questions', 'self.questions 保存分词后的问题列表，是 BM25Okapi 的训练语料。','load_data'); });
+  add(53,()=>{ flow('flowBm25'); state.self.bm25='BM25Okapi对象'; stage('初始化 BM25 模型', '<code>BM25Okapi(self.questions)</code> 会根据所有问题的分词结果建立倒排统计信息。','BM25'); });
+  add(55,()=>stage('记录初始化完成日志', '日志输出：BM25 模型初始化完成。','logger'));
+  add(63,()=>{ state.local={query: invalid ? '' : inputQuery, threshold:0.85}; stage('进入 search(query, threshold)', `开始搜索。query = <span class="tag">${invalid ? '' : inputQuery}</span>，threshold = 0.85。`,'search'); });
+  add(65,()=>stage('检查 query 是否有效', invalid ? 'query 为空，属于无效查询，将直接返回。' : 'query 是非空字符串，继续向下执行。','if'));
+  if (invalid) {
+    add(67,()=>stage('记录无效查询日志', '日志输出：无效查询。','logger'));
+    add(69,()=>{ returnResult(null,false,'bad'); stage('直接返回', '<code>return None, False</code>。这里 False 表示不是进入后续兜底流程，而是输入本身无效。','return'); });
+    return;
+  }
+  add(71,()=>{ flow('flowRedis'); const key='answer:'+inputQuery; state.local.cached_answer=state.redis[key] || null; stage('检查 Redis 是否有当前 query 的答案缓存', state.local.cached_answer ? '缓存命中：可以直接返回答案，不需要 BM25 计算。' : '缓存未命中：继续执行 BM25 检索。','Redis'); });
+  add(72,()=>stage('判断 cached_answer 是否存在', state.local.cached_answer ? 'cached_answer 有值，进入直接返回分支。' : 'cached_answer 为空，继续执行 try 中的检索逻辑。','if'));
+  if (scenario === 'direct_cache') {
+    add(74,()=>{ returnResult(state.local.cached_answer,false,'ok'); stage('直接返回缓存答案', '命中 Redis 后，函数返回 <code>cached_answer, False</code>，不再执行 BM25 和 Softmax。','return'); });
+    return;
+  }
+  add(75,()=>stage('进入 try 代码块', '正式开始执行分词、BM25 打分、Softmax 归一化和阈值判断。','try'));
+  add(77,()=>{ state.local.query_tokens=preprocessText(inputQuery); stage('对用户 query 分词', `query_tokens = ${state.local.query_tokens.map(t=>`<span class="tag">${t}</span>`).join('')}。`,'preprocess'); });
+  add(79,()=>{ flow('flowBm25'); state.scores=calcScores(state.local.query_tokens); state.calcReady=true; stage('计算 BM25 原始分数', 'BM25 会比较 query_tokens 和每条 FAQ 问题的分词结果，得到每条问题的原始相关性分数。','BM25'); });
+  add(81,()=>{ flow('flowSoftmax'); state.softmax_scores=softmax(state.scores); stage('计算 Softmax 概率', 'Softmax 把 BM25 原始分数转换成概率分布，所有概率相加等于 1。','Softmax'); });
+  add(83,()=>{ state.best_idx=state.softmax_scores.indexOf(Math.max(...state.softmax_scores)); stage('找到最高概率索引', `best_idx = ${state.best_idx}，对应候选问题：${mockQuestions[state.best_idx][0]}。`,'argmax'); });
+  add(85,()=>{ state.best_score=state.softmax_scores[state.best_idx]; stage('取出最高概率', `best_score = ${(state.best_score*100).toFixed(2)}%。`,'score'); });
+  add(87,()=>stage('判断是否超过阈值', state.best_score >= state.local.threshold ? `best_score >= 0.85，认为命中可靠答案。` : `best_score < 0.85，认为相关性不足。`,'threshold'));
+  if (scenario === 'low_score') {
+    add(108,()=>stage('记录未找到可靠答案日志', `最高 Softmax 相似度只有 ${(state.best_score*100).toFixed(2)}%，低于阈值。`,'logger'));
+    add(110,()=>{ returnResult(null,true,'warn'); stage('返回 None, True', 'True 表示需要进入后续兜底流程，例如调用大模型、人工客服或其他检索策略。','return'); });
+    return;
+  }
+  add(89,()=>{ state.local.original_question=mockQuestions[state.best_idx][0]; stage('根据 best_idx 找到原始问题', `original_question = ${state.local.original_question}。`,'top1'); });
+  add(91,()=>{ flow('flowRedis'); state.local.redis_result=state.redis['answer:'+state.local.original_question] || null; stage('尝试从 Redis 获取标准问题答案', state.local.redis_result ? '标准问题答案在 Redis 中，直接使用。' : '标准问题答案不在 Redis，继续查 MySQL。','Redis'); });
+  add(93,()=>stage('判断 redis_result 是否存在', state.local.redis_result ? 'Redis 有答案，进入 if 分支。' : 'Redis 没有答案，进入 else 分支查询 MySQL。','if'));
+  add(96,()=>stage('进入 else 分支', '因为 Redis 没有标准问题答案，所以需要从 MySQL 获取。','else'));
+  add(97,()=>{ flow('flowMysql'); state.local.answer=mockAnswers[state.local.original_question]; stage('从 MySQL 查询答案', `answer = ${state.local.answer}`,'MySQL'); });
+  add(100,()=>stage('判断 answer 是否存在', state.local.answer ? '答案存在，进入缓存和返回流程。' : '答案不存在，将继续走无可靠答案逻辑。','if'));
+  add(102,()=>{ flow('flowRedis'); state.redis['answer:'+inputQuery]=state.local.answer; stage('把本次 query 的答案写入 Redis', `写入 key：answer:${inputQuery}。下次同样 query 可以直接命中缓存。`,'Redis'); });
+  add(104,()=>stage('记录搜索成功日志', `日志输出：搜索成功，Softmax 相似度：${state.best_score.toFixed(3)}。`,'logger'));
+  add(106,()=>{ returnResult(state.local.answer,false,'ok'); stage('返回答案', '<code>return answer, False</code>。False 表示已经找到答案，不需要兜底。','return'); });
+}
+function updateButtons() {
+  const autoBtn = document.getElementById('autoBtn');
+  const manualBtn = document.getElementById('manualBtn');
+  const prevBtn = document.getElementById('prevBtn');
+  if (!autoBtn || !manualBtn || !prevBtn) return;
+
+  const total = Array.isArray(steps) ? steps.length : 0;
+  const current = typeof stepIndex === 'number' ? Math.min(stepIndex, total) : 0;
+
+  autoBtn.disabled = autoRunning;
+  manualBtn.disabled = autoRunning;
+  prevBtn.disabled = autoRunning || current <= 0;
+
+  if (autoRunning) {
+    autoBtn.textContent = total > 0 ? `自动执行中 ${current}/${total}` : '自动执行中...';
+  } else {
+    autoBtn.textContent = '自动执行';
+  }
+}
+
+function resetAll() {
+  clearTimeout(autoTimer);
+  autoRunning = false;
+  stepIndex = 0;
+  updateButtons();
+  renderCode();
+  initState();
+  buildSteps();
+  const codeBox = document.getElementById('codeBox');
+  if (codeBox) codeBox.scrollTop = 0;
+  document.getElementById('stepBadge').textContent='等待开始';
+  document.getElementById('stageBox').innerHTML='<h3>准备执行</h3><div class="main-text">点击“自动执行”或“手工下一行”，观察代码每一步如何影响数据。</div>';
+  document.querySelectorAll('.flow-node').forEach(n=>n.classList.remove('active','done'));
+  renderStates(); renderMockData(); renderCalc();
+}
+function executeStep() {
+  ensureReady();
+  if (stepIndex >= steps.length) {
+    stage('执行结束', '当前场景已经执行完成。可以切换场景或点击重置重新演示。','完成');
+    updateButtons();
+    return false;
+  }
+
+  try {
+    const s = steps[stepIndex++];
+    setLine(s.line);
+    s.action();
+    renderStates();
+    renderMockData();
+    renderCalc();
+    updateButtons();
+    return true;
+  } catch (err) {
+    autoRunning = false;
+    console.error(err);
+    stage('执行异常', `当前步骤执行失败：<code>${err.message}</code><br>已停止自动执行，请点击“重置”后重试。`, '异常');
+    updateButtons();
+    return false;
+  }
+}
+function manualNext() {
+  if (autoRunning) return;
+  ensureReady();
+  executeStep();
+}
+
+function replayTo(targetIndex) {
+  targetIndex = Math.max(0, Math.min(targetIndex, steps ? steps.length : 0));
+  resetAll();
+  const box = document.getElementById('codeBox');
+  for (let i = 0; i < targetIndex; i++) {
+    const s = steps[stepIndex++];
+    setLine(s.line);
+    s.action();
+    renderStates();
+    renderMockData();
+    renderCalc();
+  }
+  if (box) box.scrollTop = Math.max(0, box.scrollTop);
+  updateButtons();
+}
+
+function manualPrev() {
+  if (autoRunning) return;
+  ensureReady();
+  if (stepIndex <= 0) return;
+  replayTo(stepIndex - 1);
+}
+
+async function autoRun() {
+  if (autoRunning) return;
+
+  ensureReady();
+  clearTimeout(autoTimer);
+
+  // 默认直接运行；如果已经执行到结尾，再点自动执行会自动从头开始。
+  if (!Array.isArray(steps) || steps.length === 0 || stepIndex >= steps.length) {
+    resetAll();
+    ensureReady();
+  }
+
+  autoRunning = true;
+  updateButtons();
+
+  try {
+    // 先等待一小段时间，让按钮上的“自动执行中 0/N”能够正常渲染。
+    await new Promise(resolve => setTimeout(resolve, 120));
+
+    while (autoRunning && stepIndex < steps.length) {
+      const moved = executeStep();
+      if (!moved) break;
+      await new Promise(resolve => setTimeout(resolve, 650));
+    }
+
+    if (stepIndex >= steps.length) {
+      stage('执行结束', '当前场景已经执行完成。可以点击“手工上一行”回看，也可以点击“重置”重新演示。','完成');
+      renderStates();
+      renderMockData();
+      renderCalc();
+    }
+  } catch (err) {
+    console.error(err);
+    stage('自动执行异常', `自动执行失败：<code>${err.message}</code><br>请点击“重置”后重试。`, '异常');
+  } finally {
+    autoRunning = false;
+    updateButtons();
+  }
+}
+
+stepIndex = 0; renderCode(); initState(); buildSteps(); renderStates(); renderMockData(); renderCalc(); updateButtons();
+document.getElementById('scenario').addEventListener('change', resetAll);
+document.getElementById('queryInput').addEventListener('input', () => { if (getScenario() !== 'invalid') resetAll(); });
+</script>
+</body>
+</html>

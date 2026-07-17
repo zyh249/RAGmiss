@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>BM25Search AI 动态执行图 · V4 源码标注精准版</title>
+  <style>
+    :root{
+      --bg:#f4f6fb;
+      --panel:#ffffff;
+      --ink:#0f172a;
+      --muted:#64748b;
+      --border:#e2e8f0;
+      --accent:#2563eb;
+      --accent2:#06b6d4;
+      --ok:#059669;
+      --warn:#f97316;
+      --danger:#dc2626;
+      --purple:#7c3aed;
+      --soft-blue:#dbeafe;
+      --soft-green:#dcfce7;
+      --soft-orange:#ffedd5;
+      --soft-cyan:#cffafe;
+      --soft-purple:#ede9fe;
+      --soft-red:#fee2e2;
+      --shadow:0 1px 2px rgba(15,23,42,.06),0 12px 32px rgba(15,23,42,.10);
+      --node-shadow:drop-shadow(0 4px 8px rgba(15,23,42,.10));
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;overflow:hidden}
+    body{
+      font-family:"Microsoft YaHei",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+      background:var(--bg);color:var(--ink);display:flex;flex-direction:column;
+    }
+    header{
+      height:62px;display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--panel);
+      border-bottom:1px solid var(--border);box-shadow:0 1px 0 rgba(15,23,42,.02);z-index:5;
+    }
+    .brand{font-weight:900;font-size:16px;letter-spacing:.1px;white-space:nowrap}
+    .brand span{color:var(--accent)}
+    .meta{font-size:12px;color:var(--muted)}
+    .spacer{flex:1}
+    .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    button,select,input{
+      height:34px;border:1px solid var(--border);background:#fff;color:var(--ink);border-radius:10px;padding:0 12px;
+      font-family:inherit;font-size:13px;outline:none;transition:.15s ease;
+    }
+    input{width:185px}
+    button{cursor:pointer}
+    button:hover,select:hover,input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+    button.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+    button.ghost{background:#f8fafc}
+    button.danger{color:var(--danger)}
+    main{flex:1;min-height:0;display:grid;grid-template-columns:38% 62%;gap:0}
+    .left,.right{min-width:0;min-height:0;display:flex;flex-direction:column}
+    .left{background:var(--panel);border-right:1px solid var(--border)}
+    .pane-head{
+      height:42px;padding:0 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);
+      color:var(--muted);font-size:12px;background:#fff;
+    }
+    .pane-head strong{color:var(--ink);font-size:13px}
+    .code-stage{flex:1;min-height:0;padding:12px;display:grid;grid-template-rows:minmax(0,1.15fr) 172px;gap:12px;overflow:hidden}
+    .code-card,.data-card,.note-card{border:1px solid var(--border);background:#fff;border-radius:16px;box-shadow:var(--shadow);overflow:hidden;min-height:0}
+    .code-title,.data-title{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);background:#f8fafc}
+    .code-title b,.data-title b{color:var(--ink)}
+    pre{margin:0;white-space:pre-wrap;word-break:break-word;font-family:"SFMono-Regular",Consolas,Menlo,monospace}
+    #codeBlock{
+      height:calc(100% - 34px);overflow:auto;padding:9px 0;font-size:11.5px;line-height:1.48;color:#334155;background:
+        linear-gradient(90deg,rgba(37,99,235,.06),transparent 42%);
+    }
+    #codeBlock .kw{color:#7c3aed;font-weight:700}
+    #codeBlock .fn{color:#2563eb;font-weight:800}
+    #codeBlock .cm{color:#64748b}
+    #codeBlock .code-line{display:grid;grid-template-columns:38px minmax(0,1fr);gap:8px;padding:1px 14px 1px 0;min-height:18px;border-radius:0}
+    #codeBlock .code-line .ln{text-align:right;color:#94a3b8;user-select:none;font-weight:500}
+    #codeBlock .code-line .src{white-space:pre-wrap;word-break:break-word}
+    #codeBlock .code-line.hi{background:#dbeafe;color:#1d4ed8;font-weight:900;box-shadow:inset 4px 0 0 #2563eb}
+    #codeBlock .code-line.hi .ln{color:#2563eb;font-weight:900}
+    .bottom-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;min-height:0}
+    #dataBlock,#explainBlock{padding:10px 12px;font-size:12px;line-height:1.52;color:#334155;height:calc(100% - 34px);overflow:hidden}
+    #dataBlock{font-family:"SFMono-Regular",Consolas,Menlo,monospace;background:#fcfcfd}
+    #explainBlock b{color:var(--accent)}
+    .stage-wrap{flex:1;min-height:0;position:relative;overflow:hidden;background:
+      linear-gradient(0deg,rgba(37,99,235,.018),rgba(37,99,235,.018)),
+      radial-gradient(circle at 1px 1px,rgba(15,23,42,.065) 1px,transparent 0);background-size:auto,24px 24px;
+    }
+    .legend{height:38px;display:flex;align-items:center;gap:16px;padding:0 16px;border-bottom:1px solid var(--border);background:#fff;font-size:12px;color:var(--muted)}
+    .legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+    .dot{width:12px;height:12px;border-radius:4px;border:1px solid transparent}
+    .progress-line{height:5px;background:#e2e8f0;position:relative;overflow:hidden}
+    #progressFill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .25s ease}
+    #canvas{width:100%;height:100%;display:block}
+    .node{cursor:pointer;filter:var(--node-shadow);transition:.2s ease}
+    .node rect{rx:15;ry:15;stroke-width:1.35;transition:.2s ease}
+    .node:hover rect{stroke-width:2.2;filter:drop-shadow(0 8px 18px rgba(37,99,235,.25))}
+    .node text{pointer-events:none;font-family:"Microsoft YaHei",Arial,sans-serif}
+    .node .title{font-weight:800;font-size:13px;fill:#0f172a}
+    .node .sub{font-size:10.6px;fill:#64748b;font-family:Consolas,"SFMono-Regular",monospace}
+    .node.dim{opacity:.14;filter:none}
+    .node.active rect{stroke-width:3!important;filter:drop-shadow(0 10px 26px rgba(37,99,235,.38))}
+    .node.done rect{stroke-width:1.9}
+    .edge{fill:none;stroke:#94a3b8;stroke-width:1.9;stroke-linecap:round;stroke-dasharray:7 6;opacity:.44;animation:dashflow 1s linear infinite;transition:.25s ease}
+    .edge.active{stroke:var(--accent);stroke-width:3.1;opacity:1;filter:drop-shadow(0 0 4px rgba(37,99,235,.28))}
+    .edge.done{stroke:#22c55e;stroke-width:2.4;opacity:.85}
+    .edge.dim{opacity:.08;animation:none}
+    @keyframes dashflow{to{stroke-dashoffset:-26}}
+    .flow-dot{fill:var(--accent);filter:drop-shadow(0 0 7px var(--accent));opacity:0}
+    .flow-dot.active{opacity:1}
+    .edge-label{font-size:10.5px;font-weight:800;fill:#475569;paint-order:stroke;stroke:#fff;stroke-width:5px;stroke-linejoin:round}
+    .edge-label.dim{opacity:.13}
+    .detail{
+      position:absolute;right:16px;top:58px;width:280px;background:#fff;border:1px solid var(--border);border-radius:18px;box-shadow:var(--shadow);
+      padding:14px 14px 12px;display:none;z-index:4
+    }
+    .detail.show{display:block}
+    .detail .chip{display:inline-block;border-radius:999px;padding:2px 8px;font-size:11px;font-weight:800;margin-bottom:8px}
+    .detail h3{margin:0 0 4px;font-size:16px}
+    .detail p{margin:0;color:#475569;font-size:12px;line-height:1.55}
+    .detail .close{position:absolute;right:8px;top:8px;width:26px;height:26px;padding:0;border:0;background:transparent;font-size:18px;color:#64748b}
+    .step-panel{height:86px;background:#fff;border-top:1px solid var(--border);display:grid;grid-template-columns:260px 1fr 245px;gap:12px;align-items:center;padding:10px 16px}
+    .stat{border:1px solid var(--border);border-radius:15px;padding:10px 12px;background:#f8fafc;height:66px}
+    .stat .k{font-size:11px;color:var(--muted);margin-bottom:3px}.stat .v{font-size:16px;font-weight:900;color:var(--accent)}
+    .step-text{height:66px;border:1px solid var(--border);border-radius:15px;padding:9px 12px;background:#fff;overflow:hidden}
+    .step-text .name{font-weight:900;color:#0f172a;margin-bottom:4px;font-size:14px}.step-text .desc{font-size:12px;color:#475569;line-height:1.45}
+    .control-group{display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+    .pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);background:#f8fafc;border-radius:999px;padding:6px 10px;font-size:12px;color:#475569;white-space:nowrap}
+    .pulse{width:7px;height:7px;border-radius:99px;background:var(--ok);box-shadow:0 0 0 6px rgba(5,150,105,.12)}
+    @media(max-width:1120px){main{grid-template-columns:1fr}.left{display:none}.step-panel{grid-template-columns:1fr}.stat,.control-group{display:none}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">BM25Search · <span>AI 动态执行图</span></div>
+    <div class="meta">单 HTML 文件 · V4 源码真实行号标注 · 自动定位高亮行</div>
+    <div class="spacer"></div>
+    <div class="toolbar">
+      <input id="queryInput" value="BM25 如何计算相似度" title="演示查询" />
+      <select id="scenario">
+        <option value="hit">演示：高置信命中</option>
+        <option value="low">演示：低置信兜底</option>
+        <option value="cache">演示：query 缓存命中</option>
+      </select>
+      <button id="prevBtn" class="ghost">上一步</button>
+      <button id="nextBtn" class="primary">下一步</button>
+      <button id="playBtn">自动播放</button>
+      <button id="resetBtn" class="ghost">重置</button>
+    </div>
+  </header>
+  <main>
+    <section class="left">
+      <div class="pane-head"><strong>Python 源码级执行视图</strong><span>完整函数 + 真实行号 + 自动定位</span></div>
+      <div class="code-stage">
+        <div class="code-card">
+          <div class="code-title"><b>当前完整函数</b><span id="lineHint">BM25Search.search()</span></div>
+          <pre id="codeBlock"></pre>
+        </div>
+        <div class="bottom-row">
+          <div class="data-card">
+            <div class="data-title"><b>当前数据格式</b><span>Data Snapshot</span></div>
+            <pre id="dataBlock"></pre>
+          </div>
+          <div class="note-card">
+            <div class="data-title"><b>讲解提示</b><span>Teacher Note</span></div>
+            <div id="explainBlock"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+    <section class="right">
+      <div class="pane-head"><strong>BM25 + Redis + MySQL + Softmax 检索流程</strong><span id="sizeInfo">点击节点查看说明</span></div>
+      <div class="legend">
+        <span><i class="dot" style="background:#dbeafe;border-color:#60a5fa"></i>入口 / 校验</span>
+        <span><i class="dot" style="background:#cffafe;border-color:#06b6d4"></i>缓存 / 数据源</span>
+        <span><i class="dot" style="background:#ede9fe;border-color:#8b5cf6"></i>算法计算</span>
+        <span><i class="dot" style="background:#dcfce7;border-color:#22c55e"></i>命中返回</span>
+        <span><i class="dot" style="background:#fee2e2;border-color:#ef4444"></i>兜底</span>
+        <span class="pill"><i class="pulse"></i>流动光点 = 当前执行路径</span>
+      </div>
+      <div class="progress-line"><div id="progressFill"></div></div>
+      <div class="stage-wrap">
+        <svg id="canvas" viewBox="0 0 1280 760" preserveAspectRatio="xMidYMid meet"></svg>
+        <aside class="detail" id="detail">
+          <button class="close" id="closeDetail">×</button>
+          <span class="chip" id="dChip"></span>
+          <h3 id="dTitle"></h3>
+          <p id="dText"></p>
+        </aside>
+      </div>
+      <div class="step-panel">
+        <div class="stat"><div class="k">当前 Softmax 最高置信度</div><div class="v" id="scoreView">0.916</div></div>
+        <div class="step-text"><div class="name" id="stepName">准备开始</div><div class="desc" id="stepDesc">点击“下一步”或“自动播放”，观察这段 Python 代码如何从缓存、MySQL、BM25 分数一路执行到答案返回。</div></div>
+        <div class="control-group">
+          <button id="copyBtn" class="ghost">复制 HTML</button>
+          <button id="downloadBtn" class="ghost">下载当前页</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+const SVGNS='http://www.w3.org/2000/svg';
+const $=id=>document.getElementById(id);
+const colors={
+  entry:{fill:'#dbeafe',stroke:'#60a5fa',chip:'#2563eb',label:'入口/校验'},
+  cache:{fill:'#cffafe',stroke:'#06b6d4',chip:'#0891b2',label:'缓存/数据源'},
+  algo:{fill:'#ede9fe',stroke:'#8b5cf6',chip:'#7c3aed',label:'算法计算'},
+  ok:{fill:'#dcfce7',stroke:'#22c55e',chip:'#059669',label:'命中返回'},
+  warn:{fill:'#ffedd5',stroke:'#fb923c',chip:'#ea580c',label:'分支判断'},
+  bad:{fill:'#fee2e2',stroke:'#ef4444',chip:'#dc2626',label:'兜底/异常'}
+};
+const nodes=[
+  {id:'init',x:60,y:55,w:160,h:62,t:'初始化对象',s:'__init__()',c:'entry',d:'创建 BM25Search 后，保存 Redis / MySQL 客户端，并立刻调用 _load_data()。'},
+  {id:'load',x:270,y:55,w:178,h:62,t:'加载问题库',s:'_load_data()',c:'cache',d:'从 Redis 读取原始问题和分词结果；如果没有缓存，则回源 MySQL。'},
+  {id:'redisDocs',x:500,y:55,w:176,h:62,t:'读取 Redis',s:'get_data(keys)',c:'cache',d:'读取 qa_original_questions 与 qa_tokenized_questions 两个缓存键。'},
+  {id:'mysqlDocs',x:730,y:28,w:176,h:62,t:'回源 MySQL',s:'fetch_questions()',c:'cache',d:'当 Redis 没有问题库缓存时，从 MySQL 查询 FAQ 问题列表。'},
+  {id:'prepDocs',x:730,y:112,w:176,h:62,t:'问题分词',s:'preprocess_text()',c:'algo',d:'把每条原始问题转换为 token 列表，作为 BM25 语料。'},
+  {id:'build',x:970,y:70,w:190,h:72,t:'构建 BM25',s:'BM25Okapi(self.questions)',c:'algo',d:'用分词后的问题列表建立 BM25 模型，后续 query 就可以打分。'},
+  {id:'search',x:60,y:246,w:160,h:62,t:'用户查询',s:'search(query)',c:'entry',d:'外部传入 query 和 threshold，开始执行 search 方法。'},
+  {id:'validate',x:270,y:246,w:178,h:62,t:'查询校验',s:'if not query',c:'entry',d:'判断 query 是否为空，且必须是字符串。'},
+  {id:'queryCache',x:500,y:246,w:176,h:62,t:'查答案缓存',s:'get_answer(query)',c:'cache',d:'先查用户原始问题对应的 answer:{query}，命中则直接返回。'},
+  {id:'tokenize',x:730,y:246,w:176,h:62,t:'查询分词',s:'preprocess_text(query)',c:'algo',d:'把用户问题切成 token，交给 BM25 打分。'},
+  {id:'score',x:970,y:246,w:190,h:62,t:'BM25 打分',s:'get_scores(tokens)',c:'algo',d:'计算 query 与每个候选问题之间的 BM25 相关性分数。'},
+  {id:'softmax',x:970,y:376,w:190,h:62,t:'Softmax 归一化',s:'_softmax(scores)',c:'algo',d:'用 exp(scores - max) 避免溢出，再转换成概率分布。'},
+  {id:'argmax',x:730,y:376,w:176,h:62,t:'取最高分',s:'argmax()',c:'algo',d:'找到 Softmax 分数最高的候选问题下标 best_idx。'},
+  {id:'threshold',x:500,y:376,w:176,h:62,t:'阈值判断',s:'best_score >= 0.85',c:'warn',d:'只有最高置信度超过阈值，才认为匹配可靠。'},
+  {id:'originQ',x:270,y:376,w:178,h:62,t:'映射原始问题',s:'original_questions[best_idx]',c:'cache',d:'用 best_idx 找回原始问题文本，再用这个问题查标准答案。'},
+  {id:'answerRedis',x:60,y:376,w:160,h:62,t:'查标准答案',s:'get_answer(original_question)',c:'cache',d:'优先从 Redis 查询候选问题的标准答案。'},
+  {id:'mysqlAnswer',x:60,y:520,w:160,h:62,t:'答案回源',s:'fetch_answer()',c:'cache',d:'如果 Redis 没有候选问题答案，则从 MySQL 查询答案。'},
+  {id:'saveAnswer',x:270,y:520,w:178,h:62,t:'缓存本次答案',s:'set_data(answer:query)',c:'ok',d:'把用户当前 query 对应的答案写入 Redis，下一次可直接命中。'},
+  {id:'returnHit',x:500,y:520,w:176,h:62,t:'返回答案',s:'return answer, False',c:'ok',d:'找到可靠答案，返回 answer，同时 False 表示不需要进入大模型兜底。'},
+  {id:'fallback',x:730,y:520,w:176,h:62,t:'无可靠答案',s:'return None, True',c:'bad',d:'低于阈值或异常时返回 None, True，通常交给后续 RAG / LLM 兜底。'},
+  {id:'error',x:970,y:520,w:190,h:62,t:'异常捕获',s:'except Exception',c:'bad',d:'记录搜索失败日志，并返回 None, True。'}
+];
+const edges=[
+  ['init','load','调用'],['load','redisDocs','读取缓存'],['redisDocs','build','命中'],['redisDocs','mysqlDocs','未命中'],['mysqlDocs','prepDocs','问题列表'],['prepDocs','build','tokenized'],
+  ['build','search','模型就绪'],['search','validate','query'],['validate','queryCache','合法'],['validate','error','非法/异常'],['queryCache','returnHit','命中'],['queryCache','tokenize','未命中'],
+  ['tokenize','score','tokens'],['score','softmax','scores'],['softmax','argmax','概率分布'],['argmax','threshold','best_score'],['threshold','originQ','>= 阈值'],['threshold','fallback','< 阈值'],
+  ['originQ','answerRedis','原始问题'],['answerRedis','saveAnswer','Redis有答案'],['answerRedis','mysqlAnswer','Redis无答案'],['mysqlAnswer','saveAnswer','MySQL答案'],['saveAnswer','returnHit','缓存后返回'],['score','error','异常']
+];
+const edgeId=(a,b)=>`e_${a}_${b}`;
+function pathBetween(a,b){
+  const na=nodes.find(n=>n.id===a), nb=nodes.find(n=>n.id===b);
+  const ca={x:na.x+na.w/2,y:na.y+na.h/2};
+  const cb={x:nb.x+nb.w/2,y:nb.y+nb.h/2};
+
+  // 跨行回到 search()：走“下沉-横向-下落”的包络线，避免斜线穿过主流程。
+  if(a==='build'&&b==='search'){
+    const sx=na.x+na.w/2, sy=na.y+na.h;
+    const ex=nb.x+nb.w/2, ey=nb.y;
+    const midY=205;
+    return `M ${sx} ${sy} C ${sx} ${midY}, ${ex} ${midY}, ${ex} ${ey}`;
+  }
+
+  // 异常边：从下方绕线，不压住正常命中路径。
+  if(a==='validate'&&b==='error'){
+    const sx=na.x+na.w/2, sy=na.y+na.h;
+    const ex=nb.x+nb.w/2, ey=nb.y+nb.h;
+    return `M ${sx} ${sy} C ${sx} 690, ${ex} 690, ${ex} ${ey}`;
+  }
+  if(a==='score'&&b==='error'){
+    const sx=na.x+na.w, sy=na.y+na.h/2;
+    const ex=nb.x+nb.w/2, ey=nb.y;
+    return `M ${sx} ${sy} C 1220 ${sy}, 1220 ${ey}, ${ex} ${ey}`;
+  }
+
+  const dx=cb.x-ca.x, dy=cb.y-ca.y;
+  let sx,sy,ex,ey,c1x,c1y,c2x,c2y;
+
+  // 垂直关系优先用“底部 -> 顶部 / 顶部 -> 底部”，解决 queryCache -> returnHit 箭头绕圈问题。
+  if(Math.abs(dy) >= Math.abs(dx) * 0.75){
+    if(dy >= 0){
+      sx=ca.x; sy=na.y+na.h; ex=cb.x; ey=nb.y;
+      c1x=sx; c1y=sy+70; c2x=ex; c2y=ey-70;
+    }else{
+      sx=ca.x; sy=na.y; ex=cb.x; ey=nb.y+nb.h;
+      c1x=sx; c1y=sy-70; c2x=ex; c2y=ey+70;
+    }
+  }else{
+    if(dx >= 0){
+      sx=na.x+na.w; sy=ca.y; ex=nb.x; ey=cb.y;
+      c1x=sx+80; c1y=sy; c2x=ex-80; c2y=ey;
+    }else{
+      sx=na.x; sy=ca.y; ex=nb.x+nb.w; ey=cb.y;
+      c1x=sx-80; c1y=sy; c2x=ex+80; c2y=ey;
+    }
+  }
+  return `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${ex} ${ey}`;
+}
+function renderGraph(){
+  const svg=$('canvas'); svg.innerHTML='';
+  const defs=document.createElementNS(SVGNS,'defs');
+  defs.innerHTML=`
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#94a3b8"></path></marker>
+    <marker id="arrowActive" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#2563eb"></path></marker>
+    <marker id="arrowDone" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#22c55e"></path></marker>`;
+  svg.appendChild(defs);
+  const edgeLayer=document.createElementNS(SVGNS,'g'); edgeLayer.setAttribute('id','edgeLayer'); svg.appendChild(edgeLayer);
+  edges.forEach(([a,b,label])=>{
+    const p=document.createElementNS(SVGNS,'path'); p.setAttribute('id',edgeId(a,b)); p.setAttribute('class','edge dim'); p.setAttribute('d',pathBetween(a,b)); p.setAttribute('marker-end','url(#arrow)'); edgeLayer.appendChild(p);
+    const mid=document.createElementNS(SVGNS,'text'); mid.setAttribute('class','edge-label dim'); const na=nodes.find(n=>n.id===a), nb=nodes.find(n=>n.id===b);
+    mid.setAttribute('x',(na.x+nb.x+na.w)/2); mid.setAttribute('y',(na.y+nb.y+na.h)/2-8); mid.textContent=label; edgeLayer.appendChild(mid);
+    const c=document.createElementNS(SVGNS,'circle'); c.setAttribute('r','4.2'); c.setAttribute('class','flow-dot');
+    const am=document.createElementNS(SVGNS,'animateMotion'); am.setAttribute('dur','1.15s'); am.setAttribute('repeatCount','indefinite'); am.setAttribute('rotate','auto');
+    const mp=document.createElementNS(SVGNS,'mpath'); mp.setAttributeNS('http://www.w3.org/1999/xlink','href','#'+edgeId(a,b)); mp.setAttribute('href','#'+edgeId(a,b));
+    am.appendChild(mp); c.appendChild(am); edgeLayer.appendChild(c);
+  });
+  const nodeLayer=document.createElementNS(SVGNS,'g'); svg.appendChild(nodeLayer);
+  nodes.forEach(n=>{
+    const g=document.createElementNS(SVGNS,'g'); g.setAttribute('class','node dim'); g.setAttribute('data-id',n.id); g.setAttribute('transform',`translate(${n.x},${n.y})`);
+    const cc=colors[n.c];
+    const r=document.createElementNS(SVGNS,'rect'); r.setAttribute('width',n.w); r.setAttribute('height',n.h); r.setAttribute('fill',cc.fill); r.setAttribute('stroke',cc.stroke); g.appendChild(r);
+    const t=document.createElementNS(SVGNS,'text'); t.setAttribute('x',n.w/2); t.setAttribute('y',25); t.setAttribute('text-anchor','middle'); t.setAttribute('class','title'); t.textContent=n.t; g.appendChild(t);
+    const s=document.createElementNS(SVGNS,'text'); s.setAttribute('x',n.w/2); s.setAttribute('y',45); s.setAttribute('text-anchor','middle'); s.setAttribute('class','sub'); s.textContent=n.s; g.appendChild(s);
+    g.addEventListener('click',()=>showNode(n.id)); nodeLayer.appendChild(g);
+  });
+}
+function showNode(id){
+  const n=nodes.find(x=>x.id===id), cc=colors[n.c];
+  $('dChip').textContent=cc.label; $('dChip').style.background=cc.fill; $('dChip').style.color=cc.chip;
+  $('dTitle').textContent=n.t+' · '+n.s; $('dText').textContent=n.d; $('detail').classList.add('show');
+}
+$('closeDetail').onclick=()=>$('detail').classList.remove('show');
+const functionSource={
+  "init": "class BM25Search:\n    def __init__(self, redis_client, mysql_client):\n        # 初始化日志\n        self.logger = logger\n        # 初始化 Redis 客户端\n        self.redis_client = redis_client\n        # 初始化 MySQL 客户端\n        self.mysql_client = mysql_client\n        # 初始化 BM25 模型\n        self.bm25 = None\n        # 初始化问题列表\n        self.questions = None\n        # 初始化原始问题\n        self.original_questions = None\n        # 加载数据\n        self._load_data()",
+  "load": "    def _load_data(self):\n        # 加载数据\n        original_key = \"qa_original_questions\"\n        tokenized_key = \"qa_tokenized_questions\"\n        # 从 Redis 获取原始问题\n        self.original_questions = self.redis_client.get_data(original_key)\n        # 从 Redis 获取分词问题\n        tokenized_questions = self.redis_client.get_data(tokenized_key)\n        # 如果 Redis 中没有数据，从 MySQL 加载\n        if not self.original_questions or not tokenized_questions:\n            # 从 MySQL 获取问题\n            self.original_questions = self.mysql_client.fetch_questions()\n            if not self.original_questions:\n                # 记录无问题警告\n                self.logger.warning(\"未加载到问题\")\n                return\n            # 分词问题\n            tokenized_questions = [preprocess_text(q[0]) for q in self.original_questions]\n            # 存储原始问题到 Redis\n            self.redis_client.set_data(original_key, [(q[0]) for q in self.original_questions])\n            # 存储分词问题到 Redis\n            self.redis_client.set_data(tokenized_key, tokenized_questions)\n        # 设置问题列表\n        self.questions = tokenized_questions\n        # 初始化 BM25 模型\n        self.bm25 = BM25Okapi(self.questions)\n        # 记录 BM25 初始化成功\n        self.logger.info(\"BM25 模型初始化完成\")",
+  "softmax": "    def _softmax(self, scores):\n        # 计算 Softmax 分数\n        exp_scores = np.exp(scores - np.max(scores))\n        # 返回归一化分数\n        return exp_scores / exp_scores.sum()",
+  "search": "    def search(self, query, threshold=0.85):\n        # 搜索查询\n        if not query or not isinstance(query, str):\n            # 记录无效查询\n            self.logger.error(\"无效查询\")\n            # 返回 None 和 False\n            return None, False\n        # 检查 Redis 缓存\n        cached_answer = self.redis_client.get_answer(query)\n        if cached_answer:\n            # 返回缓存答案\n            return cached_answer, False\n        try:\n            # 分词查询\n            query_tokens = preprocess_text(query)\n            # 计算 BM25 分数\n            scores = self.bm25.get_scores(query_tokens)\n            # 计算 Softmax 分数\n            softmax_scores = self._softmax(scores)\n            # 获取最高分索引\n            best_idx = softmax_scores.argmax()\n            # 获取最高分\n            best_score = softmax_scores[best_idx]\n            # 检查是否超过阈值\n            if best_score >= threshold:\n                # 获取原始问题\n                original_question = self.original_questions[best_idx]\n                # 获取答案\n                redis_result = self.redis_client.get_answer(original_question)\n                # 获取答案\n                if redis_result:\n                    answer = redis_result\n                    logger.info(f'从redis中获取到了问题的答案:{answer}')\n                else:\n                    answer = self.mysql_client.fetch_answer(original_question)\n                    logger.info(f'从mysql中获取到了问题的答案:{answer}')\n\n                if answer:\n                    # 缓存答案\n                    self.redis_client.set_data(f\"answer:{query}\", answer)\n                    # 记录搜索成功\n                    self.logger.info(f\"搜索成功，Softmax 相似度: {best_score:.3f}\")\n                    # 返回答案和 False\n                    return answer, False\n            # 记录无可靠答案\n            self.logger.info(f\"未找到可靠答案，最高 Softmax 相似度: {best_score:.3f}\")\n            # 返回 None 和 True\n            return None, True\n        except Exception as e:\n            # 记录搜索失败\n            self.logger.error(f\"搜索失败: {e}\")\n            # 返回 None 和 True\n            return None, True"
+};
+const common={
+  "init": {
+    "line": "__init__() 第15行：调用 self._load_data()",
+    "fn": "init",
+    "hi": [
+      15
+    ],
+    "data": "self.bm25 = None\nself.questions = None\nself.original_questions = None\n下一步调用: self._load_data()",
+    "ex": "这里展示完整 __init__()，高亮的是代码真实调用点：对象创建后马上进入 _load_data() 初始化问题库和 BM25 模型。"
+  },
+  "load": {
+    "line": "_load_data() 第3-4行：定义 Redis 缓存 key",
+    "fn": "load",
+    "hi": [
+      2,
+      3
+    ],
+    "data": "original_key = \"qa_original_questions\"\ntokenized_key = \"qa_tokenized_questions\"",
+    "ex": "_load_data() 的整体职责是：先查 Redis；Redis 没有就查 MySQL；然后分词、写缓存、构建 BM25。"
+  },
+  "redisDocs": {
+    "line": "_load_data() 第6、8、10行：读取 Redis 并判断是否缺失",
+    "fn": "load",
+    "hi": [
+      5,
+      7,
+      9
+    ],
+    "data": "Redis: qa_original_questions -> null\nRedis: qa_tokenized_questions -> null\n判断: not self.original_questions or not tokenized_questions -> True",
+    "ex": "这里不是返回答案缓存，而是在加载问题库缓存。两个 key 缺任意一个，都要从 MySQL 回源。"
+  },
+  "mysqlDocs": {
+    "line": "_load_data() 第12-16行：Redis 未命中后回源 MySQL",
+    "fn": "load",
+    "hi": [
+      11,
+      12,
+      14,
+      15
+    ],
+    "data": "original_questions: list[tuple[str]]\n[(\"什么是 BM25 算法\",),\n (\"Redis 缓存如何使用\",),\n (\"Softmax 归一化是什么\",)]",
+    "ex": "这几行对应源码里的 fetch_questions() 和空数据保护。original_questions 是 tuple 列表，所以后面会用 q[0] 取问题文本。"
+  },
+  "prepDocs": {
+    "line": "_load_data() 第18、20、22行：分词并写入 Redis",
+    "fn": "load",
+    "hi": [
+      17,
+      19,
+      21
+    ],
+    "data": "tokenized_questions: list[list[str]]\n[[\"bm25\", \"算法\"],\n [\"redis\", \"缓存\", \"使用\"],\n [\"softmax\", \"归一化\"]]",
+    "ex": "这一步把原始中文问题转换为 BM25Okapi 能接收的 token 列表，并把原始问题和分词结果同时缓存。"
+  },
+  "build": {
+    "line": "_load_data() 第24、26、28行：赋值 questions 并构建 BM25",
+    "fn": "load",
+    "hi": [
+      23,
+      25,
+      27
+    ],
+    "data": "self.questions = tokenized_questions\nself.bm25 = BM25Okapi(self.questions)",
+    "ex": "_load_data() 的最终产物是 self.bm25。后续 search() 的 get_scores() 依赖它。"
+  },
+  "search": {
+    "line": "search() 第1行：进入查询函数",
+    "fn": "search",
+    "hi": [
+      0
+    ],
+    "data": "query = \"BM25 如何计算相似度\"\nthreshold = 0.85",
+    "ex": "search() 是查询命中主流程：校验 query、查一级缓存、分词、BM25 打分、Softmax、阈值判断、查答案、返回。"
+  },
+  "validate": {
+    "line": "search() 第3、5、7行：query 合法性校验",
+    "fn": "search",
+    "hi": [
+      2,
+      4,
+      6
+    ],
+    "data": "not query -> False\nisinstance(query, str) -> True\n返回: 继续执行",
+    "ex": "如果 query 为空或不是字符串，会直接 return None, False。生产中建议额外加 query.strip()。"
+  },
+  "queryCache": {
+    "line": "search() 第9-10行：先查用户原始 query 的答案缓存",
+    "fn": "search",
+    "hi": [
+      8,
+      9
+    ],
+    "data": "cached_answer = self.redis_client.get_answer(query)\nresult: None\n返回: 继续执行 BM25",
+    "ex": "这是用户原始 query 的一级缓存。缓存没命中时，只高亮 get_answer(query) 和 if cached_answer 判断，不高亮 return。"
+  },
+  "tokenize": {
+    "line": "search() 第15行：对用户 query 分词",
+    "fn": "search",
+    "hi": [
+      14
+    ],
+    "data": "query_tokens: list[str]\n[\"bm25\", \"如何\", \"计算\", \"相似度\"]",
+    "ex": "查询分词规则必须和问题库分词规则一致，否则 BM25 分数会失真。"
+  },
+  "score": {
+    "line": "search() 第17行：BM25 get_scores 打分",
+    "fn": "search",
+    "hi": [
+      16
+    ],
+    "data": "scores: np.ndarray\n[4.20, 0.18, 0.12, 0.32, 0.88]",
+    "ex": "BM25 原始分数不是概率，只表示候选问题与 query 的相关性强弱。"
+  },
+  "softmax": {
+    "line": "_softmax() 第3、5行：exp 防溢出 + 归一化返回",
+    "fn": "softmax",
+    "hi": [
+      2,
+      4
+    ],
+    "data": "scores - max(scores):\n[0, -4.02, -4.08, -3.88, -3.32]\nsoftmax_scores:\n[0.916, 0.016, 0.015, 0.019, 0.033]",
+    "ex": "这里切换到完整 _softmax() 函数。np.exp(scores - np.max(scores)) 是防溢出的数值稳定写法。"
+  },
+  "argmax": {
+    "line": "search() 第21、23行：取 best_idx 和 best_score",
+    "fn": "search",
+    "hi": [
+      20,
+      22
+    ],
+    "data": "best_idx = 0\nbest_score = 0.916\nbest_question = \"什么是 BM25 算法\"",
+    "ex": "argmax 只找最大值下标。是否真的能返回答案，还要看 best_score 是否超过 threshold。"
+  },
+  "threshold": {
+    "line": "search() 第25行：判断 best_score 是否超过阈值",
+    "fn": "search",
+    "hi": [
+      24
+    ],
+    "data": "best_score = 0.916\nthreshold = 0.85\n判断结果: True",
+    "ex": "阈值越高越保守，误匹配更少；阈值越低召回更多，但错误命中风险更高。"
+  },
+  "originQ": {
+    "line": "search() 第27行：用 best_idx 映射标准问题",
+    "fn": "search",
+    "hi": [
+      26
+    ],
+    "data": "original_question = self.original_questions[best_idx]\noriginal_question: \"什么是 BM25 算法\"",
+    "ex": "这里用 best_idx 找回知识库里的标准问题，而不是直接用用户 query 查标准答案。"
+  },
+  "answerRedis": {
+    "line": "search() 第29、31行：用标准问题查二级答案缓存",
+    "fn": "search",
+    "hi": [
+      28,
+      30
+    ],
+    "data": "redis_result = self.redis_client.get_answer(original_question)\nresult: None\n下一步: else -> MySQL",
+    "ex": "这是二级缓存：用标准问题查答案。如果 redis_result 存在，会进入 if redis_result 分支。"
+  },
+  "mysqlAnswer": {
+    "line": "search() 第34-36行：Redis 无标准答案，回源 MySQL",
+    "fn": "search",
+    "hi": [
+      33,
+      34,
+      35
+    ],
+    "data": "answer = self.mysql_client.fetch_answer(original_question)\nanswer: \"BM25 是一种基于词频、逆文档频率和文档长度归一化的排序算法。\"",
+    "ex": "Redis 没有标准答案时，从 MySQL 回源。注意这一步查的是 original_question。"
+  },
+  "saveAnswer": {
+    "line": "search() 第38、40、42行：answer 存在则缓存本次 query 答案",
+    "fn": "search",
+    "hi": [
+      37,
+      39,
+      41
+    ],
+    "data": "if answer -> True\nRedis write:\nanswer:BM25 如何计算相似度 -> answer",
+    "ex": "这里缓存的是用户原始 query 的答案，下一次完全相同问法可以直接走一级缓存。"
+  },
+  "returnHit": {
+    "line": "search() 第44行：返回命中答案 answer, False",
+    "fn": "search",
+    "hi": [
+      43
+    ],
+    "data": "return:\n(answer, False)\nFalse = 不需要进入大模型兜底",
+    "ex": "高置信命中路径结束。False 表示后续不用进入 RAG / LLM 兜底链路。"
+  },
+  "fallback": {
+    "line": "search() 第46、48行：低置信返回 None, True",
+    "fn": "search",
+    "hi": [
+      45,
+      47
+    ],
+    "data": "return:\n(None, True)\nTrue = 需要 RAG / LLM 兜底",
+    "ex": "低置信不是系统失败，而是主动避免硬匹配，交给后续更强的 RAG / LLM 兜底。"
+  },
+  "error": {
+    "line": "search() 第49、51、53行：except 异常兜底",
+    "fn": "search",
+    "hi": [
+      48,
+      50,
+      52
+    ],
+    "data": "Exception -> self.logger.error(...)\nreturn (None, True)",
+    "ex": "异常时也返回 None, True，避免服务直接崩溃。"
+  }
+};
+const scenarios={
+  hit:['init','load','redisDocs','mysqlDocs','prepDocs','build','search','validate','queryCache','tokenize','score','softmax','argmax','threshold','originQ','answerRedis','mysqlAnswer','saveAnswer','returnHit'],
+  low:['init','load','redisDocs','build','search','validate','queryCache','tokenize','score','softmax','argmax','threshold','fallback'],
+  cache:['build','search','validate','queryCache','returnHit']
+};
+const pathTrail={
+  init:[], load:[['init','load']], redisDocs:[['init','load'],['load','redisDocs']], mysqlDocs:[['redisDocs','mysqlDocs']], prepDocs:[['mysqlDocs','prepDocs']], build:[['prepDocs','build'],['redisDocs','build']],
+  search:[['build','search']], validate:[['search','validate']], queryCache:[['validate','queryCache']], tokenize:[['queryCache','tokenize']], score:[['tokenize','score']], softmax:[['score','softmax']], argmax:[['softmax','argmax']], threshold:[['argmax','threshold']], originQ:[['threshold','originQ']], answerRedis:[['originQ','answerRedis']], mysqlAnswer:[['answerRedis','mysqlAnswer']], saveAnswer:[['mysqlAnswer','saveAnswer'],['answerRedis','saveAnswer']], returnHit:[['saveAnswer','returnHit'],['queryCache','returnHit']], fallback:[['threshold','fallback']], error:[['validate','error'],['score','error']]
+};
+let idx=0,timer=null;
+function activeSteps(){return scenarios[$('scenario').value]||scenarios.hit}
+function escapeHtml(str){return String(str).replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]))}
+function renderFunction(fn,hi=[]){
+  const src=functionSource[fn]||'';
+  const active=new Set(hi||[]);
+  return src.split('\n').map((line,i)=>{
+    const cls=active.has(i)?'code-line hi':'code-line';
+    return `<span class="${cls}"><span class="ln">${String(i+1).padStart(2,'0')}</span><span class="src">${escapeHtml(line)}</span></span>`;
+  }).join('');
+}
+function getActualPair(prev,cur){
+  const pairs=pathTrail[cur]||[];
+  return pairs.find(([a,b])=>a===prev && b===cur) || pairs.find(([a])=>a===prev) || null;
+}
+function setScenarioData(id,info){
+  const sc=$('scenario').value;
+  if(id==='redisDocs' && sc==='low') return {...info,data:`Redis: qa_original_questions -> 已命中 list[str]
+Redis: qa_tokenized_questions -> 已命中 list[list[str]]
+判断: not self.original_questions or not tokenized_questions -> False
+下一步: 跳过 MySQL / 分词 / 写缓存，直接构建 BM25`,ex:'低置信场景演示的是“问题库缓存已存在，但查询相似度不够高”。因此这里 Redis 是命中问题库缓存，而不是回源 MySQL。'};
+  if(id==='build' && sc==='low') return {...info,data:`self.questions = tokenized_questions  # 来自 Redis 缓存
+self.bm25 = BM25Okapi(self.questions)`,ex:'这一场景中，BM25 语料来自 Redis 缓存，所以 _load_data() 只执行读取缓存和构建 BM25 两段。'};
+  if(id==='queryCache' && sc==='cache') return {...info,line:'search() 第9-12行：一级缓存命中并直接返回',hi:[8,9,10,11],data:`Redis key: answer:${$('queryInput').value}\nresult: "BM25 是一种经典排序算法..."`,ex:'演示缓存命中：这里会高亮 get_answer(query)、if cached_answer 和 return cached_answer, False，后续 BM25 打分全部跳过。'};
+  if(id==='threshold' && sc==='low') return {...info,data:`best_score = 0.642\nthreshold = 0.85\n判断结果: False`,ex:'演示低置信：最高分没有超过阈值，系统不会强行返回候选答案。'};
+  if(id==='softmax' && sc==='low') return {...info,data:`scores: [1.10, 0.98, 0.84, 0.73, 0.52]\nsoftmax_scores:\n[0.286, 0.254, 0.221, 0.198, 0.162]`,ex:'低置信场景下，分数比较平均，说明没有明显最佳候选。'};
+  if(id==='argmax' && sc==='low') return {...info,data:`best_idx = 0\nbest_score = 0.642\n候选不够可靠`,ex:'即使有最大值，只要优势不明显，也不应该直接当作标准答案。'};
+  if(id==='returnHit' && sc==='cache') return {...info,line:'search() 第12行：实际执行 return cached_answer, False',fn:'search',hi:[11],data:`return:\n(cached_answer, False)`,ex:'缓存命中路径最短，当前真正执行的是 return cached_answer, False；不会再进入 try、分词、BM25、Softmax 和 MySQL。'};
+  return info;
+}
+function update(){
+  const steps=activeSteps(); if(idx<0)idx=0; if(idx>=steps.length)idx=steps.length-1;
+  const id=steps[idx]; const info=setScenarioData(id,common[id]);
+  $('lineHint').textContent=info.line; $('codeBlock').innerHTML=renderFunction(info.fn,info.hi); requestAnimationFrame(()=>{const h=$('codeBlock').querySelector('.code-line.hi'); if(h) h.scrollIntoView({block:'center'});}); $('dataBlock').textContent=info.data; $('explainBlock').innerHTML='<b>讲解：</b>'+info.ex;
+  $('stepName').textContent=`第 ${idx+1} / ${steps.length} 步：${nodes.find(n=>n.id===id).t}`;
+  $('stepDesc').textContent=nodes.find(n=>n.id===id).d;
+  const pct=((idx+1)/steps.length)*100; $('progressFill').style.width=pct+'%';
+  $('scoreView').textContent=$('scenario').value==='low'?'0.642':($('scenario').value==='cache'?'Cache':'0.916');
+  const activeSet=new Set(steps.slice(0,idx+1));
+  document.querySelectorAll('.node').forEach(g=>{const nid=g.dataset.id;g.classList.toggle('dim',!activeSet.has(nid));g.classList.toggle('done',activeSet.has(nid)&&nid!==id);g.classList.toggle('active',nid===id);});
+  document.querySelectorAll('.edge').forEach(p=>{
+    p.classList.add('dim');
+    p.classList.remove('active','done');
+    p.setAttribute('marker-end','url(#arrow)');
+  });
+  document.querySelectorAll('.flow-dot').forEach(d=>d.classList.remove('active'));
+  document.querySelectorAll('.edge-label').forEach(l=>l.classList.add('dim'));
+
+  // 只按“当前场景真实执行过的相邻步骤”点亮边，避免把备用分支也一起点亮。
+  for(let i=1;i<=idx;i++){
+    const prev=steps[i-1], cur=steps[i];
+    const pair=getActualPair(prev,cur);
+    if(!pair) continue;
+    const p=document.getElementById(edgeId(pair[0],pair[1]));
+    if(!p) continue;
+    const isCurrent=i===idx;
+    p.classList.remove('dim');
+    p.classList.add(isCurrent?'active':'done');
+    p.setAttribute('marker-end', isCurrent ? 'url(#arrowActive)' : 'url(#arrowDone)');
+
+    const href='#'+edgeId(pair[0],pair[1]);
+    document.querySelectorAll('.flow-dot').forEach(d=>{
+      const mp=d.querySelector('mpath');
+      if(isCurrent && mp && mp.getAttribute('href')===href)d.classList.add('active');
+    });
+    const label=p.nextSibling;
+    if(label && label.classList && label.classList.contains('edge-label')) label.classList.remove('dim');
+  }
+  $('sizeInfo').textContent=`当前节点：${nodes.find(n=>n.id===id).s}`;
+}
+function next(){const steps=activeSteps(); idx=Math.min(steps.length-1,idx+1); update(); if(idx===steps.length-1)stop();}
+function prev(){idx=Math.max(0,idx-1); update();}
+function reset(){stop();idx=0;update();}
+function play(){ if(timer){stop();return;} $('playBtn').textContent='暂停'; timer=setInterval(next,1100); }
+function stop(){ if(timer){clearInterval(timer); timer=null;} $('playBtn').textContent='自动播放'; }
+$('nextBtn').onclick=next; $('prevBtn').onclick=prev; $('resetBtn').onclick=reset; $('playBtn').onclick=play; $('scenario').onchange=reset;
+$('queryInput').addEventListener('input',()=>{ if(common.search){ common.search.data=`query = "${$('queryInput').value}"\nthreshold = 0.85`; } update(); });
+$('copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(document.documentElement.outerHTML); $('copyBtn').textContent='已复制'; setTimeout(()=>$('copyBtn').textContent='复制 HTML',900)}catch(e){alert('浏览器限制，复制失败')}};
+$('downloadBtn').onclick=()=>{const blob=new Blob(['<!doctype html>\n'+document.documentElement.outerHTML],{type:'text/html;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='bm25_ai_motion_v4_code_precise.html';a.click();setTimeout(()=>URL.revokeObjectURL(url),800)};
+renderGraph(); update();
+</script>
+</body>
+</html>

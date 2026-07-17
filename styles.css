@@ -77,6 +77,26 @@ body {
   font-weight: 700;
 }
 
+.tab-link,
+.inline-link,
+.open-resource {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius);
+  padding: 9px 14px;
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.inline-link,
+.open-resource {
+  padding: 4px 8px;
+  color: var(--vector);
+}
+
 .tab-button.active {
   background: var(--text);
   color: #fff;
@@ -345,6 +365,84 @@ code {
   color: var(--muted);
 }
 
+.detail-shell {
+  padding: 24px clamp(18px, 4vw, 42px) 56px;
+}
+
+.detail-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.detail-summary article {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+}
+
+.detail-summary strong {
+  display: block;
+  font-size: 28px;
+  color: var(--vector);
+}
+
+.detail-section {
+  margin-top: 28px;
+}
+
+.detail-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.source-file-card,
+.extension-file-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.source-file-card h3,
+.extension-file-card h3 {
+  word-break: break-all;
+}
+
+.detail-meta {
+  color: var(--muted);
+  margin-top: -6px;
+}
+
+.detail-code {
+  max-height: 520px;
+  overflow: auto;
+  background: var(--code);
+  color: #e7efe9;
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.extension-frame {
+  width: 100%;
+  height: 520px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: white;
+}
+
+.extension-image {
+  display: block;
+  max-width: 100%;
+  max-height: 620px;
+  object-fit: contain;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+
 @media (max-width: 900px) {
   .app-shell {
     grid-template-columns: 1fr;
@@ -369,7 +467,8 @@ code {
   .learning-columns,
   .diagram-grid,
   .module-grid,
-  .glossary-grid {
+  .glossary-grid,
+  .detail-summary {
     grid-template-columns: 1fr;
   }
 }
