@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EduRAG 集成问答系统学习站</title>
+  <meta name="description" content="从 MySQL FAQ 到 Milvus RAG 的 EduRAG 项目学习路径与源码拆解。">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand-block">
+      <p class="eyebrow">Local Study Workbench</p>
+      <h1>EduRAG 集成问答系统学习站</h1>
+      <p class="lead">从 MySQL FAQ、Redis 缓存、BM25 检索，到 Milvus Hybrid Search、BERT 意图识别和 RAGSystem 统一答案生成。</p>
+    </div>
+    <nav class="top-tabs" aria-label="主导航">
+      <button class="tab-button active" data-tab="path">学习路线</button>
+      <button class="tab-button" data-tab="architecture">架构地图</button>
+      <button class="tab-button" data-tab="source">源码模块</button>
+      <button class="tab-button" data-tab="glossary">术语速查</button>
+      <button class="tab-button" data-tab="practice">练习清单</button>
+    </nav>
+  </header>
+
+  <main class="app-shell">
+    <aside class="side-nav" aria-label="每日目录">
+      <a href="#day02">Day02 MySQL FAQ</a>
+      <a href="#day03">Day03 工程化</a>
+      <a href="#day04">Day04 BM25</a>
+      <a href="#day05">Day05 RAG 文档</a>
+      <a href="#day06">Day06 Milvus</a>
+      <a href="#day07">Day07 RAGSystem</a>
+    </aside>
+
+    <section class="content-area">
+      <section class="tab-panel active" id="tab-path">
+        <section class="hero-grid">
+          <div class="hero-card">
+            <h2>学习主线</h2>
+            <p>这个项目先用 MySQL、Redis 和 BM25 解决标准 FAQ 问答，再用 Milvus、BERT 和 RAGSystem 处理 FAQ 无法可靠命中的专业知识问答。</p>
+          </div>
+          <div class="metric-strip">
+            <span><strong>6</strong> 天主线</span>
+            <span><strong>10</strong> 个核心模块</span>
+            <span><strong>7</strong> 张关键图例</span>
+          </div>
+        </section>
+
+        <div class="day-list">
+          <article class="day-card expanded" id="day02">
+            <button class="day-toggle" type="button" aria-expanded="true">
+              <span>Day02</span>
+              <strong>MySQL FAQ 与 Redis 缓存基础</strong>
+            </button>
+            <div class="day-content">
+              <div class="learning-columns">
+                <section>
+                  <h3>今天目标</h3>
+                  <ul>
+                    <li>理解 FAQ 问答为什么先落到 MySQL。</li>
+                    <li>理解 Redis 缓存问题列表、分词结果和答案的作用。</li>
+                    <li>知道 BM25 会在后续承担 FAQ 相似度检索。</li>
+                  </ul>
+                </section>
+                <section>
+                  <h3>对应源码</h3>
+                  <ul class="file-list">
+                    <li><code>mysql_qa/db/mysql_client.py</code></li>
+                    <li><code>mysql_qa/cache/redis_client.py</code></li>
+                    <li><code>mysql_qa/retrieval/bm25_search.py</code></li>
+                  </ul>
+                </section>
+              </div>
+              <div class="explain-block">
+                <h3>核心理解</h3>
+                <p>Day02 的重点不是直接做大模型问答，而是先把高频、标准、确定答案的问题放进结构化数据库。Redis 的价值是减少重复读取和重复分词，给后面的 BM25 检索提供更快的数据入口。</p>
+              </div>
+              <pre class="code-block"><code>CSV 数据 -> MySQL jpkb 表 -> fetch_questions()
+用户问题 -> BM25 匹配 -> fetch_answers() -> Redis 缓存答案</code></pre>
+              <div class="practice-hint">练习：清空 Redis 后重新运行，观察 `_load_data()` 是否从 MySQL 回源加载。</div>
+            </div>
+          </article>
+
+          <article class="day-card" id="day03">
+            <button class="day-toggle" type="button" aria-expanded="false">
+              <span>Day03</span>
+              <strong>工程化目录、配置读取与日志封装</strong>
+            </button>
+            <div class="day-content">
+              <div class="learning-columns">
+                <section>
+                  <h3>今天目标</h3>
+                  <ul>
+                    <li>把零散脚本组织成可维护项目结构。</li>
+                    <li>用 <code>config.ini</code> 统一管理 MySQL、Redis、Milvus 和 LLM 配置。</li>
+                    <li>用日志记录连接、检索、回退和异常信息。</li>
+                  </ul>
+                </section>
+                <section>
+                  <h3>对应源码</h3>
+                  <ul class="file-list">
+                    <li><code>base/config.py</code></li>
+                    <li><code>base/logger.py</code></li>
+                    <li><code>new_main.py</code></li>
+                  </ul>
+                </section>
+              </div>
+              <div class="explain-block">
+                <h3>核心理解</h3>
+                <p><code>Config</code> 通过当前文件路径向上找到项目根目录，再读取 <code>config.ini</code>。这种写法能避免“换工作目录就找不到配置文件”的问题。<code>new_main.py</code> 则按 MySQL、Redis、BM25、VectorStore、RAGSystem 的顺序组装系统。</p>
+              </div>
+              <pre class="code-block"><code>config.ini
+  -> Config()
+    -> MySQLClient
+    -> RedisClient
+    -> BM25Search
+    -> VectorStore
+    -> RAGSystem
+    -> FastAPI app</code></pre>
+              <div class="practice-hint">练习：把 Redis 端口改错，重新运行项目，观察日志里是否能定位连接错误。</div>
+            </div>
+          </article>
+
+          <article class="day-card" id="day04">
+            <button class="day-toggle" type="button" aria-expanded="false">
+              <span>Day04</span>
+              <strong>BM25、Softmax 与 FAQ 命中判断</strong>
+            </button>
+            <div class="day-content">
+              <div class="learning-columns">
+                <section>
+                  <h3>今天目标</h3>
+                  <ul>
+                    <li>理解中文问题为什么要先预处理和分词。</li>
+                    <li>理解 <code>BM25Okapi</code> 如何给标准问题打分。</li>
+                    <li>理解 Softmax 和阈值如何决定 FAQ 命中或回退 RAG。</li>
+                  </ul>
+                </section>
+                <section>
+                  <h3>对应源码</h3>
+                  <ul class="file-list">
+                    <li><code>mysql_qa/retrieval/bm25_search.py</code></li>
+                    <li><code>mysql_qa/utils/preprocess.py</code></li>
+                    <li><code>mysql_qa/main.py</code></li>
+                  </ul>
+                </section>
+              </div>
+              <div class="explain-block">
+                <h3>核心理解</h3>
+                <p><code>BM25Search._load_data()</code> 优先从 Redis 读取问题和分词结果；缓存缺失时回源 MySQL。<code>search(query, threshold)</code> 会先查答案缓存，再分词、打分、Softmax、取最高分，并根据阈值决定是否返回 FAQ 答案。</p>
+              </div>
+              <pre class="code-block"><code>query -> preprocess_text
+      -> BM25 get_scores
+      -> Softmax
+      -> best_score >= threshold
+          yes: return FAQ answer
+          no: need_rag = True</code></pre>
+              <div class="practice-hint">练习：把阈值从 <code>0.85</code> 调成 <code>0.30</code>，比较命中率和误命中风险。</div>
+            </div>
+          </article>
+
+          <article class="day-card" id="day05">
+            <button class="day-toggle" type="button" aria-expanded="false">
+              <span>Day05</span>
+              <strong>RAG 文档加载与父子分块</strong>
+            </button>
+            <div class="day-content">
+              <div class="learning-columns">
+                <section>
+                  <h3>今天目标</h3>
+                  <ul>
+                    <li>知道 RAG 需要先把知识库文档加载、切分和向量化。</li>
+                    <li>理解多格式加载器如何处理 txt、md、pdf、docx、pptx 和图片。</li>
+                    <li>理解父子分块如何兼顾检索精度和答案上下文完整度。</li>
+                  </ul>
+                </section>
+                <section>
+                  <h3>对应源码</h3>
+                  <ul class="file-list">
+                    <li><code>rag_qa/core/document_processor.py</code></li>
+                    <li><code>rag_qa/edu_document_loaders/*</code></li>
+                    <li><code>rag_qa/edu_text_spliter/*</code></li>
+                  </ul>
+                </section>
+              </div>
+              <div class="explain-block">
+                <h3>核心理解</h3>
+                <p><code>document_loaders</code> 把文件后缀映射到加载器。<code>load_documents_from_directory()</code> 负责遍历目录、加载文件、补充元数据。<code>process_documents()</code> 先切父块，再切子块，并把 <code>parent_id</code> 和 <code>parent_content</code> 写进子块元数据。</p>
+              </div>
+              <pre class="code-block"><code>原始文档
+  -> 父块 parent chunk: 保留完整语义
+    -> 子块 child chunk: 用于细粒度检索
+      -> metadata: parent_id + parent_content + source + timestamp</code></pre>
+              <div class="practice-hint">练习：改小 <code>CHILD_CHUNK_SIZE</code>，观察子块数量如何增加。</div>
+            </div>
+          </article>
+
+          <article class="day-card" id="day06">
+            <button class="day-toggle" type="button" aria-expanded="false">
+              <span>Day06</span>
+              <strong>Milvus 混合检索、Rerank 与 BERT 分类器</strong>
+            </button>
+            <div class="day-content">
+              <div class="learning-columns">
+                <section>
+                  <h3>今天目标</h3>
+                  <ul>
+                    <li>理解 Milvus Collection 如何同时保存 dense 和 sparse 向量。</li>
+                    <li>理解 BGE-M3、WeightedRanker 和 CrossEncoder 的协作关系。</li>
+                    <li>理解 QueryClassifier 如何判断通用知识和专业咨询。</li>
+                  </ul>
+                </section>
+                <section>
+                  <h3>对应源码</h3>
+                  <ul class="file-list">
+                    <li><code>rag_qa/core/vector_store.py</code></li>
+                    <li><code>rag_qa/core/query_classifier.py</code></li>
+                  </ul>
+                </section>
+              </div>
+              <div class="explain-block">
+                <h3>核心理解</h3>
+                <p><code>VectorStore._create_or_load_collection()</code> 创建文本字段、dense vector 字段、sparse vector 字段和索引。<code>hybrid_search_with_rerank()</code> 会构造两个检索请求，用 <code>WeightedRanker</code> 合并结果，再用 CrossEncoder 对父文档重排。</p>
+              </div>
+              <pre class="code-block"><code>query
+  -> BGE-M3
+    -> dense_query_vector
+    -> sparse_query_vector
+  -> Milvus Hybrid Search
+  -> WeightedRanker(1.0, 0.7)
+  -> unique parent docs
+  -> CrossEncoder rerank</code></pre>
+              <div class="practice-hint">练习：调整 <code>WeightedRanker(1.0, 0.7)</code> 的权重，理解语义召回和关键词召回的平衡。</div>
+            </div>
+          </article>
+
+          <article class="day-card" id="day07">
+            <button class="day-toggle" type="button" aria-expanded="false">
+              <span>Day07</span>
+              <strong>四种检索策略与 RAGSystem 总入口</strong>
+            </button>
+            <div class="day-content">
+              <div class="learning-columns">
+                <section>
+                  <h3>今天目标</h3>
+                  <ul>
+                    <li>理解直接检索、HyDE、子查询检索和回溯问题检索。</li>
+                    <li>理解 RAGSystem 如何把分类、策略、检索、Prompt 和 LLM 串起来。</li>
+                    <li>理解 FastAPI / WebSocket 如何支持普通查询和流式答案。</li>
+                  </ul>
+                </section>
+                <section>
+                  <h3>对应源码</h3>
+                  <ul class="file-list">
+                    <li><code>rag_qa/core/new_rag_system.py</code></li>
+                    <li><code>rag_qa/core/strategy_selector.py</code></li>
+                    <li><code>new_main.py</code></li>
+                    <li><code>app.py</code></li>
+                  </ul>
+                </section>
+              </div>
+              <div class="explain-block">
+                <h3>核心理解</h3>
+                <p><code>IntegratedQASystem.query()</code> 先走 BM25 FAQ，高置信度直接返回；低置信度进入 <code>RAGSystem.generate_answer()</code>。RAGSystem 先用 <code>QueryClassifier</code> 判断问题类型，专业咨询再通过策略选择器进入 Milvus 检索、重排、Prompt 拼接和 LLM 流式生成。</p>
+              </div>
+              <pre class="code-block"><code>BM25 low confidence
+  -> RAGSystem
+    -> QueryClassifier
+      -> 通用知识: direct LLM
+      -> 专业咨询: strategy + Milvus + Rerank + Prompt + LLM
+  -> /api/stream returns tokens by WebSocket</code></pre>
+              <div class="practice-hint">练习：比较“课程多少钱”和“5*9 等于多少”，理解专业咨询与通用知识分流。</div>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="tab-architecture">
+        <h2>项目主链路</h2>
+        <div class="flow-map" aria-label="EduRAG 项目主链路">
+          <button class="flow-node user" data-target="day07">用户问题</button>
+          <span class="flow-arrow">→</span>
+          <button class="flow-node api" data-target="module-app">FastAPI / WebSocket</button>
+          <span class="flow-arrow">→</span>
+          <button class="flow-node search" data-target="day04">BM25 FAQ</button>
+          <span class="flow-arrow">→</span>
+          <button class="flow-node storage" data-target="module-mysql">MySQL + Redis</button>
+          <span class="flow-branch">低置信度回退</span>
+          <button class="flow-node rag" data-target="day07">RAGSystem</button>
+          <span class="flow-arrow">→</span>
+          <button class="flow-node vector" data-target="day06">Milvus Hybrid Search</button>
+          <span class="flow-arrow">→</span>
+          <button class="flow-node llm" data-target="module-rag">LLM 流式答案</button>
+        </div>
+
+        <div class="diagram-grid">
+          <article class="diagram-card">
+            <h3>BM25 FAQ 命中流程</h3>
+            <p>用户问题先分词，再与标准问题计算 BM25 得分。Softmax 后最高分超过阈值就直接返回 FAQ 答案。</p>
+            <code>query -> preprocess -> scores -> softmax -> threshold</code>
+          </article>
+          <article class="diagram-card">
+            <h3>Redis 缓存回源</h3>
+            <p>优先读取 Redis 中的问题列表、分词结果和答案；缓存缺失时从 MySQL 回源，并重新写入 Redis。</p>
+            <code>Redis miss -> MySQL fetch -> Redis set</code>
+          </article>
+          <article class="diagram-card">
+            <h3>父子分块</h3>
+            <p>子块负责精确命中，父块负责提供完整上下文，二者通过 <code>parent_id</code> 和 <code>parent_content</code> 关联。</p>
+            <code>document -> parent chunks -> child chunks</code>
+          </article>
+          <article class="diagram-card">
+            <h3>Milvus 混合检索</h3>
+            <p>BGE-M3 同时生成稠密向量和稀疏向量，Milvus 混合检索后再用 CrossEncoder 重排父文档。</p>
+            <code>dense + sparse -> WeightedRanker -> rerank</code>
+          </article>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="tab-source">
+        <h2>源码模块索引</h2>
+        <div class="module-grid">
+          <article class="module-card" id="module-app">
+            <h3>app.py</h3>
+            <p>提供 FastAPI 入口、静态文件服务、普通查询接口、WebSocket 流式接口、历史记录接口和学科列表接口。</p>
+            <pre class="code-block"><code>@app.post("/api/query")
+async def query(request: QueryRequest):
+    answer, need_rag = qa_system.bm25_search.search(request.query, threshold=0.85)
+    if need_rag:
+        return {"is_streaming": True}
+    return {"answer": answer, "is_streaming": False}</code></pre>
+          </article>
+
+          <article class="module-card" id="module-integrated">
+            <h3>new_main.py / IntegratedQASystem</h3>
+            <p>集成 MySQL、Redis、BM25、VectorStore、RAGSystem 和 DashScope LLM，是完整问答系统的调度中心。</p>
+            <pre class="code-block"><code>answer, need_rag = self.bm25_search.search(query, threshold=0.85)
+if answer:
+    yield answer, True
+elif need_rag:
+    for token in self.rag_system.generate_answer(query, source_filter, history):
+        yield token, False</code></pre>
+          </article>
+
+          <article class="module-card" id="module-mysql">
+            <h3>mysql_qa/db/mysql_client.py</h3>
+            <p>负责连接 MySQL、创建 FAQ 表、导入 CSV、读取标准问题和查询答案。</p>
+            <pre class="code-block"><code>def fetch_answers(self, question):
+    self.cursor.execute("select answer from jpkb where question = %s", (question,))
+    result = self.cursor.fetchone()
+    return result[0] if result else None</code></pre>
+          </article>
+
+          <article class="module-card" id="module-bm25">
+            <h3>mysql_qa/retrieval/bm25_search.py</h3>
+            <p>负责加载标准问题、构建 BM25Okapi、计算 Softmax 分数、判断是否命中 FAQ 或回退 RAG。</p>
+            <pre class="code-block"><code>softmax_scores = self._softmax(scores)
+best_idx = softmax_scores.argmax()
+best_score = softmax_scores[best_idx]
+if best_score >= threshold:
+    answer = self.mysql_client.fetch_answers(original_question)</code></pre>
+          </article>
+
+          <article class="module-card" id="module-vector">
+            <h3>rag_qa/core/vector_store.py</h3>
+            <p>负责 Milvus Collection 创建、文档向量写入、dense/sparse 混合检索、父文档去重和 CrossEncoder 重排。</p>
+            <pre class="code-block"><code>ranker = WeightedRanker(1.0, 0.7)
+result = self.client.hybrid_search(
+    collection_name=self.collection_name,
+    reqs=[dense_request, sparse_request],
+    ranker=ranker,
+    limit=k
+)</code></pre>
+          </article>
+
+          <article class="module-card" id="module-rag">
+            <h3>rag_qa/core/new_rag_system.py</h3>
+            <p>负责问题分类、检索策略选择、上下文构造、提示词格式化和 LLM 流式答案生成。</p>
+            <pre class="code-block"><code>query_category = self.query_classifier.predict_category(query)
+if query_category == "通用知识":
+    context = ""
+else:
+    context_docs = self.retrieve_and_merge(query, source_filter, strategy)
+prompt_input = self.rag_prompt.format(context=context, history=history_context, question=query)</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="tab-glossary">
+        <h2>术语速查</h2>
+        <label class="search-label" for="glossarySearch">筛选术语</label>
+        <input class="glossary-search" id="glossarySearch" type="search" placeholder="输入 Redis、BM25、Milvus、HyDE...">
+        <div class="glossary-grid">
+          <article class="glossary-card" data-keywords="redis cache fallback">
+            <h3>Redis</h3>
+            <p>内存型键值数据库，本项目用于缓存标准问题、分词结果和已命中的答案，减少重复访问 MySQL。</p>
+          </article>
+          <article class="glossary-card" data-keywords="bm25 similarity search">
+            <h3>BM25</h3>
+            <p>关键词相关性算法，用于判断用户问题和 FAQ 标准问题是否足够相似。</p>
+          </article>
+          <article class="glossary-card" data-keywords="softmax normalize threshold">
+            <h3>Softmax</h3>
+            <p>把一组原始分数转成概率分布，方便用最高分和阈值判断是否命中 FAQ。</p>
+          </article>
+          <article class="glossary-card" data-keywords="milvus vector database">
+            <h3>Milvus</h3>
+            <p>向量数据库，本项目用于存储知识库文档的 dense/sparse 向量并执行混合检索。</p>
+          </article>
+          <article class="glossary-card" data-keywords="dense vector semantic">
+            <h3>Dense Vector</h3>
+            <p>稠密向量更擅长表达语义相似度，适合召回含义接近但关键词不同的文本。</p>
+          </article>
+          <article class="glossary-card" data-keywords="sparse vector keyword">
+            <h3>Sparse Vector</h3>
+            <p>稀疏向量更接近关键词匹配，适合保留专业名词和明确词项的匹配能力。</p>
+          </article>
+          <article class="glossary-card" data-keywords="rerank crossencoder">
+            <h3>Rerank</h3>
+            <p>重排序步骤会重新评估 query 和候选父文档的相关性，把更适合生成答案的上下文排到前面。</p>
+          </article>
+          <article class="glossary-card" data-keywords="hyde hypothetical answer">
+            <h3>HyDE</h3>
+            <p>先让 LLM 生成一个假设答案，再用假设答案去检索，适合原问题表达不够接近知识库文本的场景。</p>
+          </article>
+          <article class="glossary-card" data-keywords="bert intent classifier QueryClassifier">
+            <h3>BERT 意图识别</h3>
+            <p>判断问题属于通用知识还是专业咨询，决定是否进入 RAG 专业知识检索流程。</p>
+          </article>
+          <article class="glossary-card" data-keywords="websocket stream token">
+            <h3>WebSocket</h3>
+            <p>用于服务端逐 token 推送 LLM 生成结果，让前端看到流式输出。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="tab-panel" id="tab-practice">
+        <h2>练习清单</h2>
+        <p class="muted">勾选状态保存在当前浏览器的 localStorage 中。</p>
+        <div class="practice-list">
+          <label class="practice-item"><input type="checkbox" data-practice="redis-rebuild"> 清空 Redis 后重新运行，观察 `_load_data()` 是否从 MySQL 回源。</label>
+          <label class="practice-item"><input type="checkbox" data-practice="config-error"> 把 Redis 端口改错，观察日志中连接失败的错误信息。</label>
+          <label class="practice-item"><input type="checkbox" data-practice="bm25-threshold"> 把 BM25 阈值从 `0.85` 调成 `0.30`，比较命中率和误命中风险。</label>
+          <label class="practice-item"><input type="checkbox" data-practice="chunk-size"> 改小 `CHILD_CHUNK_SIZE`，观察子块数量如何变化。</label>
+          <label class="practice-item"><input type="checkbox" data-practice="weighted-ranker"> 调整 `WeightedRanker(1.0, 0.7)` 权重，理解语义和关键词召回的平衡。</label>
+          <label class="practice-item"><input type="checkbox" data-practice="query-category"> 比较“课程多少钱”和“5*9 等于多少”，理解专业咨询和通用知识分流。</label>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
