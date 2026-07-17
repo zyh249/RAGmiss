@@ -36,6 +36,9 @@ $requiredDetails = @(
   "EduRAG 源码全文与扩展资料库",
   "返回学习路线",
   "资料目录",
+  'id="detailReader"',
+  'id="tocToggle"',
+  "收起目录",
   'id="detailSearch"',
   "toc-list",
   "day-divider",
@@ -85,14 +88,14 @@ if ($extensionFileCount -lt 40) {
   throw "details.html extension file count too low: $extensionFileCount"
 }
 
-$requiredCss = @(".app-shell", ".day-card", ".flow-map", ".module-card", ".glossary-card", ".detail-page", ".detail-reader", ".detail-toc", ".toc-list", ".extension-intro", ".extension-preview", "@media")
+$requiredCss = @(".app-shell", ".day-card", ".flow-map", ".module-card", ".glossary-card", ".detail-page", ".detail-reader", ".toc-collapsed", ".toc-toggle", ".detail-toc", ".toc-list", ".extension-intro", ".extension-preview", "@media")
 foreach ($pattern in $requiredCss) {
   if ($styles -notlike "*$pattern*") {
     throw "styles.css missing pattern: $pattern"
   }
 }
 
-$requiredJs = @("activateTab", "localStorage", "navigator.clipboard", "scrollIntoView", "detailSearch", "data-detail-item")
+$requiredJs = @("activateTab", "localStorage", "navigator.clipboard", "scrollIntoView", "detailSearch", "data-detail-item", "setTocCollapsed", "edurag-detail-toc-collapsed", "tocToggle")
 foreach ($pattern in $requiredJs) {
   if ($script -notlike "*$pattern*") {
     throw "script.js missing pattern: $pattern"
@@ -114,5 +117,6 @@ foreach ($pattern in $externalRefs) {
 }
 
 Write-Host "Smoke test passed: static EduRAG learning site files look complete."
+
 
 

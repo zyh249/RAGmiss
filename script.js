@@ -4,6 +4,8 @@ const dayToggles = document.querySelectorAll(".day-toggle");
 const flowNodes = document.querySelectorAll(".flow-node[data-target]");
 const glossarySearch = document.querySelector("#glossarySearch");
 const detailSearch = document.querySelector("#detailSearch");
+const detailReader = document.querySelector("#detailReader");
+const tocToggle = document.querySelector("#tocToggle");
 const practiceInputs = document.querySelectorAll("[data-practice]");
 
 function activateTab(tabName) {
@@ -13,6 +15,14 @@ function activateTab(tabName) {
   panels.forEach((panel) => {
     panel.classList.toggle("active", panel.id === `tab-${tabName}`);
   });
+}
+
+function setTocCollapsed(collapsed) {
+  if (!detailReader || !tocToggle) return;
+  detailReader.classList.toggle("toc-collapsed", collapsed);
+  tocToggle.textContent = collapsed ? "展开目录" : "收起目录";
+  tocToggle.setAttribute("aria-expanded", String(!collapsed));
+  localStorage.setItem("edurag-detail-toc-collapsed", String(collapsed));
 }
 
 tabButtons.forEach((button) => {
@@ -85,6 +95,17 @@ if (detailSearch) {
       const haystack = link.innerText.toLowerCase();
       link.hidden = keyword.length > 0 && !haystack.includes(keyword);
     });
+  });
+}
+
+if (detailReader && tocToggle) {
+  const collapsed = localStorage.getItem("edurag-detail-toc-collapsed") === "true";
+  setTocCollapsed(collapsed);
+  tocToggle.addEventListener("click", () => {
+    setTocCollapsed(!detailReader.classList.contains("toc-collapsed"));
+  });
+  document.querySelectorAll('a[href="#detail-directory"]').forEach((link) => {
+    link.addEventListener("click", () => setTocCollapsed(false));
   });
 }
 

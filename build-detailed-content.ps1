@@ -202,7 +202,11 @@ $html = @"
       </article>
     </section>
 
-    <div class="detail-reader">
+    <div id="detailReader" class="detail-reader">
+      <div class="reader-toolbar">
+        <button id="tocToggle" class="toc-toggle" type="button" aria-controls="detail-directory" aria-expanded="true">收起目录</button>
+        <span>目录可以随时展开或收起，正文区域会自动调整宽度。</span>
+      </div>
       <aside id="detail-directory" class="detail-toc" aria-label="完整资料库目录">
         <div class="toc-panel">
           <p class="eyebrow">资料目录</p>
@@ -258,5 +262,6 @@ $($extensionCards -join "`n")
 
 Set-Content -Path (Join-Path $siteRoot "details.html") -Value $html -Encoding UTF8
 Write-Host "Generated details.html with $sourceCount source files and $extensionCount extension files."
+
 
 
