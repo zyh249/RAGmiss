@@ -25,15 +25,21 @@ $requiredHtml = @(
   'id="day05"',
   'id="day06"',
   'id="day07"',
+  'id="day08"',
+  'id="day09"',
   "FastAPI / WebSocket",
   "Milvus Hybrid Search",
   "WeightedRanker",
   "QueryClassifier",
-  "RAGSystem"
+  "RAGSystem",
+  "RAGAS",
+  "Docker",
+  "EduRAG 集成问答系统学习站"
 )
 
 $requiredDetails = @(
   "EduRAG 源码全文与扩展资料库",
+  "day02 到 day09",
   "返回学习路线",
   "资料目录",
   'id="detailReader"',
@@ -84,7 +90,7 @@ if ($sourceFileCount -lt 20) {
 }
 
 $extensionFileCount = ([regex]::Matches($detailHtml, 'class="extension-file-card"')).Count
-if ($extensionFileCount -lt 40) {
+if ($extensionFileCount -lt 120) {
   throw "details.html extension file count too low: $extensionFileCount"
 }
 
@@ -102,9 +108,9 @@ foreach ($pattern in $requiredJs) {
   }
 }
 
-$encodingArtifacts = @("澶嶅埗", "宸插", "鍗曠嫭")
+$encodingArtifacts = @("澶嶅埗", "宸插", "鍗曠嫭", "闆嗘垚", "瀛︿範", "鎵╁睍")
 foreach ($pattern in $encodingArtifacts) {
-  if ($script -like "*$pattern*" -or $detailHtml -like "*$pattern*") {
+  if ($html -like "*$pattern*" -or $script -like "*$pattern*" -or $detailHtml -like "*$pattern*") {
     throw "Generated files contain encoding artifact: $pattern"
   }
 }
@@ -117,6 +123,7 @@ foreach ($pattern in $externalRefs) {
 }
 
 Write-Host "Smoke test passed: static EduRAG learning site files look complete."
+
 
 
 

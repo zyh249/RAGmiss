@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VectorStore 混合检索图解动画</title>
+<style>
+:root{--bg:#0f172a;--panel:#111827;--panel2:#0b1220;--line:#294866;--blue:#58b7ff;--green:#43c36e;--yellow:#ffd43b;--purple:#7c5cff;--text:#e5f0ff;--muted:#9bb4d1;--danger:#ff6b6b;}
+*{box-sizing:border-box} body{margin:0;font-family:"Microsoft YaHei",Arial,sans-serif;background:linear-gradient(135deg,#08111f,#101827 55%,#0b1220);color:var(--text);overflow-x:hidden}.wrap{width:97%;max-width:1920px;margin:0 auto;padding:24px 0 36px}.hero{text-align:center;margin-bottom:18px}.hero h1{margin:0 0 8px;font-size:40px;color:var(--blue);text-shadow:0 0 20px rgba(88,183,255,.45)}.hero p{margin:0;color:#c7dcff;font-size:16px}.toolbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:16px;padding:16px 20px;margin-bottom:20px;background:rgba(15,23,42,.94);backdrop-filter:blur(8px);border:1px solid #31577e;border-radius:18px;box-shadow:0 8px 30px rgba(0,0,0,.35)}.toolbar label{font-weight:700;color:#9ee0ff;font-size:18px}.toolbar select{min-width:360px;padding:12px 18px;border-radius:12px;border:1px solid #38618b;background:#060b18;color:white;font-size:16px}.toolbar button{padding:12px 22px;border:none;border-radius:12px;color:white;font-size:16px;font-weight:700;cursor:pointer}.toolbar button:disabled{opacity:.55;cursor:not-allowed}.btn-auto{background:linear-gradient(135deg,#2790f2,#4357d8)}.btn-next{background:linear-gradient(135deg,#2db85d,#23934a)}.btn-prev{background:linear-gradient(135deg,#765cff,#5f42d2)}.btn-reset{background:linear-gradient(135deg,#64748b,#334155)}.grid{display:grid;grid-template-columns:minmax(820px,1.55fr) minmax(430px,.85fr);gap:18px}.panel{background:rgba(17,24,39,.88);border:1px solid #31577e;border-radius:18px;padding:16px;min-height:760px}.panel h2{margin:0 0 14px;color:var(--blue);font-size:26px}.codebox{height:730px;overflow:auto;background:#050a14;border:1px solid #27445f;border-radius:14px;padding:12px 0;font-family:Consolas,"Courier New",monospace;font-size:15px;line-height:1.58}.line{display:grid;grid-template-columns:58px minmax(0,1fr);padding:0 14px;border-left:4px solid transparent;white-space:pre}.line .num{color:#7890ad;text-align:right;padding-right:14px;user-select:none}.line .txt{color:#e8f4ff;white-space:pre}.line.blank .txt{min-height:1em}.line.active{background:rgba(88,183,255,.18);border-left-color:#58b7ff}.line.range{background:rgba(88,183,255,.08)}.line.comment .txt{color:#9aa7ba}.tok-kw{color:#7dd3fc;font-weight:700}.tok-str{color:#86efac}.tok-num{color:#fbbf24}.tok-func{color:#c4b5fd}.tok-class{color:#facc15;font-weight:700}.tok-builtin{color:#f9a8d4}.tok-comment{color:#94a3b8;font-style:italic}.rightTop{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px}.badge{display:inline-flex;align-items:center;padding:6px 12px;border-radius:999px;border:1px solid #4b83b9;background:#0c1b31;color:#bde5ff;font-size:13px}.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px}.node{padding:10px 6px;min-height:68px;background:rgba(31,41,55,.92);border:1px solid #334155;border-radius:12px;text-align:center;transition:.25s}.node .n1{font-weight:700;color:#f4f9ff;font-size:14px}.node .n2{font-size:12px;color:#9db8d7;margin-top:4px}.node.active{border-color:#58b7ff;background:rgba(14,80,128,.55);box-shadow:0 0 18px rgba(88,183,255,.35);transform:translateY(-3px)}.node.done{border-color:#43c36e;background:rgba(20,83,45,.35)}.explain{background:rgba(14,35,58,.85);border:1px solid #31577e;border-radius:16px;padding:18px;margin-bottom:16px}.explain h3{margin:0 0 10px;color:var(--yellow);font-size:24px}.explain p{margin:8px 0;color:#e5f0ff;line-height:1.8}.cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}.card{background:#070d1a;border:1px solid #233a55;border-radius:14px;padding:12px;min-height:145px}.card h4{margin:0 0 9px;color:#9ee0ff;font-size:17px}.kv{display:grid;grid-template-columns:132px minmax(0,1fr);gap:6px 8px;font-size:13px}.k{color:#a9bfd9;border-bottom:1px dashed rgba(169,191,217,.25)}.v{color:#ffd43b;border-bottom:1px dashed rgba(169,191,217,.25);word-break:break-word}.json{background:#020817;border:1px solid #1f3651;border-radius:10px;padding:10px;color:#d7ecff;font-family:Consolas,"Courier New",monospace;font-size:12px;line-height:1.55;white-space:pre-wrap;max-height:240px;overflow:auto}.effect{border-left:4px solid var(--green);padding:10px 12px;background:rgba(22,101,52,.16);border-radius:10px;color:#d8ffe5;line-height:1.7}.warn{border-left-color:var(--yellow);background:rgba(133,92,0,.18);color:#fff3bf}.diagram{display:flex;gap:10px;align-items:center;justify-content:center;margin:14px 0 16px;flex-wrap:wrap}.pill{padding:10px 14px;border-radius:12px;background:#1f2937;border:1px solid #3b4a60;color:#dce8f7;font-weight:700}.arrow{color:#58b7ff;font-size:22px}.pill.hot{background:#0e507f;border-color:#58b7ff;box-shadow:0 0 18px rgba(88,183,255,.4)}.miniTable{width:100%;border-collapse:collapse;font-size:13px}.miniTable th,.miniTable td{border:1px solid #243c58;padding:8px;text-align:left}.miniTable th{background:#10233a;color:#9ee0ff}.miniTable td{background:#07101f;color:#e5f0ff}.footerNote{margin-top:14px;color:#9bb4d1;font-size:13px;line-height:1.7}.status{margin-left:auto;color:#bde5ff}
+@media(max-width:1200px){.grid{grid-template-columns:1fr}.toolbar{flex-wrap:wrap}.toolbar select{min-width:260px}.flow{grid-template-columns:repeat(3,1fr)}.cards{grid-template-columns:1fr}}
+
+
+/* ===== 2026-06 优化：左侧稍窄、代码字体缩小、左右区域等高、尽量消除横向滚动条 ===== */
+.wrap{
+  width:96%;
+  max-width:1760px;
+  padding:18px 0 24px;
+}
+.hero{
+  margin-bottom:12px;
+}
+.hero h1{
+  font-size:34px;
+}
+.hero p{
+  font-size:14px;
+}
+.toolbar{
+  gap:12px;
+  padding:12px 16px;
+  margin-bottom:14px;
+}
+.toolbar label{
+  font-size:16px;
+}
+.toolbar select{
+  min-width:330px;
+  padding:10px 14px;
+  font-size:15px;
+}
+.toolbar button{
+  padding:10px 18px;
+  font-size:15px;
+}
+.grid{
+  grid-template-columns:minmax(560px,0.94fr) minmax(500px,1.06fr);
+  gap:14px;
+  align-items:stretch;
+}
+.panel{
+  height:calc(100vh - 190px);
+  min-height:620px;
+  padding:14px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+.panel h2{
+  font-size:22px;
+  margin-bottom:10px;
+  flex:0 0 auto;
+}
+.grid > .panel:first-child{
+  overflow:hidden;
+}
+.grid > .panel:nth-child(2){
+  overflow-y:auto;
+  overflow-x:hidden;
+}
+.codebox{
+  height:auto;
+  flex:1 1 auto;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  padding:10px 0;
+  font-size:12.5px;
+  line-height:1.42;
+  scrollbar-gutter:stable;
+}
+.line{
+  grid-template-columns:42px minmax(0,1fr);
+  padding:0 10px 0 8px;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.line .num{
+  padding-right:8px;
+}
+.line .txt{
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  word-break:break-word;
+}
+.rightTop{
+  margin-bottom:8px;
+}
+.flow{
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:7px;
+  margin-bottom:10px;
+}
+.node{
+  min-height:56px;
+  padding:8px 5px;
+}
+.node .n1{
+  font-size:13px;
+}
+.node .n2{
+  font-size:11px;
+}
+.explain{
+  padding:12px;
+  margin-bottom:10px;
+}
+.explain h3{
+  font-size:19px;
+  margin-bottom:6px;
+}
+.explain p{
+  line-height:1.55;
+  font-size:13.5px;
+}
+.diagram{
+  gap:6px;
+  margin:8px 0 10px;
+}
+.pill{
+  padding:7px 10px;
+  font-size:13px;
+}
+.arrow{
+  font-size:18px;
+}
+.cards{
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+.card{
+  min-height:118px;
+  padding:10px;
+}
+.card h4{
+  font-size:15px;
+  margin-bottom:6px;
+}
+.kv{
+  grid-template-columns:116px minmax(0,1fr);
+  gap:5px 6px;
+  font-size:12px;
+}
+.json{
+  font-size:11.5px;
+  line-height:1.45;
+  max-height:190px;
+  overflow:auto;
+}
+.effect{
+  font-size:12.5px;
+  line-height:1.55;
+  padding:8px 10px;
+}
+.footerNote{
+  font-size:12px;
+  margin-top:8px;
+}
+@media(max-width:1200px){
+  .grid{grid-template-columns:1fr;}
+  .panel{height:auto;min-height:520px;}
+  .codebox{height:520px;}
+}
+
+</style>
+
+<style id="layout-tuning-final">
+/* 最终版布局微调：左侧略宽、代码字体略大、允许代码区横向滚动 */
+.grid{
+  grid-template-columns:minmax(720px,1.18fr) minmax(430px,.82fr) !important;
+  gap:18px !important;
+  align-items:stretch;
+}
+.panel{
+  min-height:760px !important;
+}
+.grid > .panel:first-child{
+  overflow:hidden !important;
+}
+.grid > .panel:nth-child(2){
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+}
+.codebox{
+  height:730px !important;
+  font-size:14px !important;
+  line-height:1.62 !important;
+  overflow-x:auto !important;
+  overflow-y:auto !important;
+  white-space:pre !important;
+  padding:12px 0 16px !important;
+}
+.line{
+  display:grid !important;
+  grid-template-columns:54px auto !important;
+  width:max-content !important;
+  min-width:100% !important;
+  padding:0 14px !important;
+  white-space:pre !important;
+  overflow-wrap:normal !important;
+  word-break:normal !important;
+}
+.line .num{
+  padding-right:14px !important;
+}
+.line .txt{
+  white-space:pre !important;
+  overflow-wrap:normal !important;
+  word-break:normal !important;
+}
+.flow{
+  grid-template-columns:repeat(4,minmax(0,1fr)) !important;
+  gap:8px !important;
+}
+.node{
+  min-height:62px !important;
+  padding:9px 5px !important;
+}
+.node .n1{font-size:13px !important;}
+.node .n2{font-size:11px !important;}
+.explain h3{font-size:20px !important;}
+.explain p{font-size:13.5px !important;line-height:1.7 !important;}
+.card h4{font-size:15px !important;}
+.kv{font-size:12px !important;grid-template-columns:110px minmax(0,1fr) !important;}
+.json{font-size:12px !important;max-height:220px !important;}
+@media(max-width:1250px){
+  .grid{grid-template-columns:1fr !important;}
+  .codebox{height:560px !important;}
+}
+</style>
+
+<style id="no-right-scroll-tuning">
+/* 右侧图解区不使用内部滚动条：内容超出时交给整页滚动 */
+.grid{
+  align-items:start !important;
+}
+.grid > .panel:first-child{
+  align-self:start !important;
+}
+.grid > .panel:nth-child(2){
+  align-self:start !important;
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+  overflow:visible !important;
+}
+.grid > .panel:nth-child(2) .json{
+  max-height:none !important;
+  overflow:visible !important;
+}
+.grid > .panel:nth-child(2) .cards{
+  align-items:start !important;
+}
+.grid > .panel:nth-child(2) .card{
+  min-height:auto !important;
+}
+.grid > .panel:nth-child(2) .explain,
+.grid > .panel:nth-child(2) .diagram,
+.grid > .panel:nth-child(2) .cards,
+.grid > .panel:nth-child(2) .footerNote{
+  flex:0 0 auto !important;
+}
+@media(max-width:1250px){
+  .grid > .panel:nth-child(2){height:auto !important;min-height:0 !important;overflow:visible !important;}
+}
+</style>
+
+<style id="align-and-click-locate-tuning">
+/* 对齐优化：左侧高度跟随右侧，代码超出后只在代码区滚动 */
+.grid{
+  align-items:stretch !important;
+}
+.grid > .panel:first-child{
+  display:flex !important;
+  flex-direction:column !important;
+  overflow:hidden !important;
+  min-height:0 !important;
+}
+.grid > .panel:first-child h2{
+  flex:0 0 auto !important;
+}
+.grid > .panel:nth-child(2){
+  overflow:visible !important;
+  height:auto !important;
+  min-height:0 !important;
+  max-height:none !important;
+}
+.codebox{
+  flex:1 1 auto !important;
+  min-height:420px !important;
+  height:auto !important;
+  overflow:auto !important;
+}
+/* 右侧所有讲解块都可以点击定位代码 */
+.flow .node,
+.explain,
+.diagram,
+.cards .card,
+.rightTop .badge{
+  cursor:pointer;
+}
+.flow .node:hover,
+.explain:hover,
+.diagram:hover,
+.cards .card:hover,
+.rightTop .badge:hover{
+  outline:1px solid rgba(88,183,255,.75);
+  box-shadow:0 0 16px rgba(88,183,255,.20);
+}
+.line.locate-flash{
+  animation: locateFlash 1.1s ease-in-out 1;
+}
+@keyframes locateFlash{
+  0%{background:rgba(250,204,21,.50);}
+  100%{background:rgba(88,183,255,.18);}
+}
+@media(max-width:1250px){
+  .grid > .panel:first-child{height:auto !important;}
+  .codebox{height:560px !important;min-height:560px !important;}
+}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <h1>VectorStore 混合检索图解动画</h1>
+    <p>用具体数据演示：文档如何入库，查询如何走 dense + sparse 混合检索，再经过父文档去重和 Rerank 返回上下文</p>
+  </div>
+  <div class="toolbar">
+    <label>演示场景：</label>
+    <select id="scenario">
+      <option value="full">完整流程：新建集合 → 入库 → 混合检索 → Rerank</option>
+      <option value="exists">集合已存在：跳过建表，直接 load_collection</option>
+      <option value="one_parent">只命中 1 个父文档：跳过 Rerank</option>
+      <option value="no_filter">不传 source_filter：不过滤 source</option>
+      <option value="sparse_fallback">稀疏向量读取异常：走 getrow(0) 兜底</option>
+    </select>
+    <button class="btn-auto" id="autoBtn">自动演示</button>
+    <button class="btn-next" id="nextBtn">手工下一步</button>
+    <button class="btn-prev" id="prevBtn">手工上一步</button>
+    <button class="btn-reset" id="resetBtn">重置</button>
+    <span class="status" id="status">等待开始</span>
+  </div>
+  <div class="grid">
+    <section class="panel">
+      <h2>代码区：使用你提供的 VectorStore 代码</h2>
+      <div id="codeBox" class="codebox"></div>
+    </section>
+    <section class="panel">
+      <h2>图解演示区</h2>
+      <div class="rightTop"><span class="badge" id="stepBadge">等待开始</span><span class="badge" id="moduleBadge">模块：-</span></div>
+      <div class="flow" id="flow"></div>
+      <div class="explain" id="explain"></div>
+      <div class="diagram" id="diagram"></div>
+      <div class="cards">
+        <div class="card"><h4>当前数据格式</h4><div id="formatBox" class="kv"></div></div>
+        <div class="card"><h4>具体示例数据</h4><div id="sampleBox" class="json"></div></div>
+        <div class="card"><h4>操作效果</h4><div id="effectBox" class="effect"></div></div>
+        <div class="card"><h4>写代码时记住</h4><div id="rememberBox" class="effect warn"></div></div>
+      </div>
+      <div class="footerNote">说明：页面中的向量数值是教学示例，真实运行时由 BGE-M3 根据文本动态生成；代码显示区使用原始代码文本安全渲染，并增加语法着色；不会破坏源码缩进。</div>
+    </section>
+  </div>
+</div>
+<script id="code-data" type="application/json">["# 导入 BGE-M3 嵌入函数，用于生成文档和查询的向量表示", "from milvus_model.hybrid import BGEM3EmbeddingFunction", "# 导入 Milvus 相关类，用于操作向量数据库", "from pymilvus import MilvusClient, DataType, AnnSearchRequest, WeightedRanker", "# 导入 Document 类，用于创建文档对象", "from langchain_core.documents import Document", "# 导入 CrossEncoder，用于重排序和 NLI 判断", "from sentence_transformers import CrossEncoder", "# 导入 hashlib 模块，用于生成唯一 ID 的哈希值", "import hashlib", "from base.config import Config", "from base.logger import logger", "import sys", "import os", "", "# 获取当前文件所在目录的绝对路径", "current_dir = os.path.dirname(os.path.abspath(__file__))", "# 获取core文件所在的目录的绝对路径", "rag_qa_path = os.path.dirname(current_dir)", "sys.path.insert(0, rag_qa_path)", "# 获取根目录文件所在的绝对位置", "project_root = os.path.dirname(rag_qa_path)", "sys.path.insert(0, project_root)", "", "class VectorStore():", "    def __init__(self, collection_name=Config().MILVUS_COLLECTION_NAME, host=Config().MILVUS_HOST, port=Config().MILVUS_PORT, database=Config().MILVUS_DATABASE_NAME):", "        self.collection_name = collection_name", "        self.host = host", "        self.port = port", "        self.database = database", "        # 设置日志记录器", "        self.logger = logger", "        rerank_model_path = os.path.join(rag_qa_path, 'models', 'bge-reranker-large')", "        self.reranker = CrossEncoder(rerank_model_path, device='cpu')", "        bge_m3_model_path = os.path.join(rag_qa_path, 'models', 'bge-m3')", "        self.embedding_function = BGEM3EmbeddingFunction(", "            model_name_or_path=bge_m3_model_path,", "            use_fp16=False,", "            device='cpu'", "        )", "        self.dense_dim = self.embedding_function.dim['dense']", "        self.client = MilvusClient(uri=f\"http://{self.host}:{self.port}\", db_name=self.database)", "        self._create_or_load_collection()", "", "    def _create_or_load_collection(self):", "        if not self.client.has_collection(self.collection_name):", "            schema = self.client.create_schema(auto_id=False,enable_dynamic_field=True)", "            # 添加 ID 字段，作为主键，VARCHAR 类型，最大长度 100", "            schema.add_field(field_name=\"id\", datatype=DataType.VARCHAR, is_primary=True, max_length=100)", "            # 添加文本字段，VARCHAR 类型，最大长度 65535", "            schema.add_field(field_name=\"text\", datatype=DataType.VARCHAR, max_length=65535)", "            # 添加稠密向量字段，FLOAT_VECTOR 类型，维度由嵌入函数指定", "            schema.add_field(field_name=\"dense_vector\", datatype=DataType.FLOAT_VECTOR, dim=self.dense_dim)", "            # 添加稀疏向量字段，SPARSE_FLOAT_VECTOR 类型", "            schema.add_field(field_name=\"sparse_vector\", datatype=DataType.SPARSE_FLOAT_VECTOR)", "            # 添加父块 ID 字段，VARCHAR 类型，最大长度 100", "            schema.add_field(field_name=\"parent_id\", datatype=DataType.VARCHAR, max_length=100)", "            # 添加父块内容字段，VARCHAR 类型，最大长度 65535", "            schema.add_field(field_name=\"parent_content\", datatype=DataType.VARCHAR, max_length=65535)", "            # 添加学科类别字段，VARCHAR 类型，最大长度 50", "            schema.add_field(field_name=\"source\", datatype=DataType.VARCHAR, max_length=50)", "            # 添加时间戳字段，VARCHAR 类型，最大长度 50", "            schema.add_field(field_name=\"timestamp\", datatype=DataType.VARCHAR, max_length=5)", "", "            # 创建index索引参数对象", "            index_params = self.client.prepare_index_params()", "            index_params.add_index(", "                field_name='dense_vector',", "                index_name=\"dense_vector\",", "                index_type=\"IVF_FLAT\",", "                metric_type=\"IP\",", "                params={\"nlist\": 128}", "            )", "            index_params.add_index(", "                field_name='sparse_vector',", "                index_name=\"sparse_vector\",", "                index_type=\"SPARSE_INVERTED_INDEX\",", "                metric_type=\"IP\",", "                params={\"drop_ratio_build\": 0.2}", "            )", "", "            self.client.create_collection(collection_name=self.collection_name, schema=schema,", "                                          index_params=index_params)", "            logger.info(f\"已创建集合 {self.collection_name}\")", "        else:", "            logger.info(f\"已加载集合 {self.collection_name}\")", "            # 把集合添加到内容，确保可立即查询", "            self.client.load_collection(self.collection_name)", "", "    def add_documents(self, documents):", "        # 提取所有文档内容列表", "        texts = [doc.page_content for doc in documents]", "        # 使用BGE-M3嵌入函数生成文档的嵌入", "        embeddings = self.embedding_function(texts)", "        # 创建一个空的列表，用于存储插入的数据", "        data = []", "        for i, doc in enumerate(documents):", "            text_hash = hashlib.md5(doc.page_content.encode('utf-8'))", "            # 初始化稀疏向量字典", "            sparse_vector = {}", "            # 获取第i行的稀疏向量数据", "            row = embeddings[\"sparse\"][i]", "            if hasattr(row, 'col'):", "                indices, values = row.col, row.data", "            else:", "                indices, values = row.indices, row.data", "            for idx, value in zip(indices, values):", "                sparse_vector[idx] = value", "            # 创建数据字典，包含所有字段", "            data.append({", "                \"id\": text_hash.hexdigest(),", "                \"text\": doc.page_content,", "                \"dense_vector\": embeddings[\"dense\"][i],", "                \"sparse_vector\": sparse_vector,", "                \"parent_id\": doc.metadata[\"parent_id\"],", "                \"parent_content\": doc.metadata[\"parent_content\"],", "                \"source\": doc.metadata.get(\"source\", \"unknown\"),", "                \"timestamp\": doc.metadata.get(\"timestamp\", \"unknown\")", "            })", "        if data:", "            self.client.upsert(collection_name=self.collection_name, data=data)", "            self.client.flush(collection_name=self.collection_name)", "            self.client.load_collection(self.collection_name)", "            logger.info(f\"已插入 {len(data)} 条数据\")", "", "", "    def hybrid_search_with_rerank(self, query, k=Config().RETRIEVAL_K, source_filter=None):", "        # 使用BGE-M3嵌入函数生成查询的嵌入", "        query_embeddings = self.embedding_function([query])", "        dense_query_vector = query_embeddings[\"dense\"][0]", "        # 初始化稀疏向量字典", "        sparse_query_vector = {}", "        try:", "            row = query_embeddings[\"sparse\"][0]", "            if hasattr(row, 'col'):", "                indices = row.col", "                values = row.data", "            else:", "                indices = row.indices", "                values = row.data", "        except Exception as e:", "            row = query_embeddings[\"sparse\"].getrow(0)", "            indices = row.indices", "            values = row.data", "        for idx, value in zip(indices, values):", "            sparse_query_vector[idx] = value", "        filter_expr = f\"source=='{source_filter}'\" if source_filter else \"\"", "        dense_request = AnnSearchRequest(", "            data = [dense_query_vector],", "            anns_field=\"dense_vector\",", "            param = {\"metric_type\": \"IP\", \"params\": {\"nprobe\": 10}},", "            limit = k,", "            expr = filter_expr", "        )", "        sparse_request = AnnSearchRequest(", "            data = [sparse_query_vector],", "            anns_field=\"sparse_vector\",", "            param = {\"metric_type\": \"IP\", \"params\": {}},", "            limit = k,", "            expr = filter_expr", "        )", "        # 创建加权排序器，稠密向量权重 1.0，稀疏向量权重 0.7", "        ranker = WeightedRanker(1.0, 0.7)", "        result = self.client.hybrid_search(", "            collection_name = self.collection_name,", "            reqs=[dense_request, sparse_request],", "            ranker=ranker,", "            limit = k,", "            output_fields=[\"text\", \"parent_id\", \"parent_content\", \"source\", \"timestamp\"]", "        )[0]", "        # 将搜索结果转换为Document对象列表", "        sub_chunks = [self._doc_from_hit(hit[\"entity\"]) for hit in result]", "        print(f'sub_chunks-->{len(sub_chunks)}')", "        # 从子块提取去重的父文档", "        parent_docs = self._get_unique_parent_docs(sub_chunks)", "        # 如果只有1个文档，直接返回跳过重排序", "        if len(parent_docs) < 2:", "            return parent_docs[:Config().CANDIDATE_M]", "        # 如果有父文档，进行重排序", "        if parent_docs:", "            pairs = [[query, doc.page_content] for doc in parent_docs]", "            scores = self.reranker.predict(pairs)", "            # 根据得分从高到低排序文档", "            ranked_parent_docs = [doc for _, doc in sorted(zip(scores, parent_docs), reverse=True)]", "        else:", "            ranked_parent_docs = []", "        # 返回前k个重排序后的文档", "        return ranked_parent_docs[:Config().CANDIDATE_M]", "", "    def _get_unique_parent_docs(self, sub_chunks):", "        parent_contents = set()", "        unique_docs = []", "        for chunk in sub_chunks:", "            parent_content = chunk.metadata.get(\"parent_content\", chunk.page_content)", "            if parent_content and parent_content not in parent_contents:", "                unique_docs.append(Document(page_content=parent_content, metadata=chunk.metadata))", "                parent_contents.add(parent_content)", "        # 返回去重后的父文档列表", "        return unique_docs", "", "    def _doc_from_hit(self, hit):", "        return Document(", "            page_content = hit.get(\"text\"),", "            metadata = {", "                \"parent_id\": hit.get(\"parent_id\"),", "                \"parent_content\": hit.get(\"parent_content\"),", "                \"source\": hit.get(\"source\"),", "                \"timestamp\": hit.get(\"timestamp\")", "            }", "        )", "", "if __name__ == \"__main__\":", "    from rag_qa.core.document_processor import process_documents", "", "    vector_store = VectorStore()", "", "    # 用绝对路径，避免找错目录", "    directory_path = r\"../data/ai_data\"", "", "    # 1. 处理文档", "    documents = process_documents(", "        directory_path,", "        Config().PARENT_CHUNK_SIZE,", "        Config().CHILD_CHUNK_SIZE,", "        Config().CHUNK_OVERLAP,", "    )", "", "    print(\"文档块数量：\", len(documents))", "", "    # 2. 给所有 AI 文档打上 source=ai 标签", "    for doc in documents:", "        doc.metadata[\"source\"] = \"ai\"", "        doc.metadata[\"timestamp\"] = \"2026\"", "", "    # 3. 写入 Milvus", "    vector_store.add_documents(documents)", "", "    print(\"AI 文档入库完成\")", "", "    # 4. 测试检索", "    results = vector_store.hybrid_search_with_rerank(", "        query=\"人工智能主要学什么？\",", "        k=5,", "        source_filter=\"ai\"", "    )", "", "    print(\"检索结果数量：\", len(results))", "", "    for doc in results:", "        print(\"metadata:\", doc.metadata)", "        print(\"content:\", doc.page_content[:300])", "        print(\"-\" * 50)", "", "    # 测试代码", "    query = \"课程新增了什么技术\"", "    results = vector_store.hybrid_search_with_rerank(query, source_filter='ai')", "    print(f'results-->{results}')", "    print(f'results-->{len(results)}')", "", "    \"\"\"", "    当前文件单独运行时，会执行这里的测试代码。", "    被其他文件 import 时，不会执行这里的测试代码。", "    \"\"\"", "    '''", "    print(\"开始测试 VectorStore...\")", "", "    # 1. 创建 VectorStore 对象", "    vector_store = VectorStore()", "", "    # 2. 准备测试文档", "    test_docs = [", "        Document(", "            page_content=\"VMware Tools 显示灰色，一般是因为虚拟机没有正确挂载 CD/DVD 设备，可以关闭虚拟机后检查 CD/DVD 设置。\",", "            metadata={", "                \"parent_id\": \"parent_001\",", "                \"parent_content\": \"VMware Tools 显示灰色的解决方法：先关闭虚拟机，然后进入虚拟机设置，把 CD/DVD、CD/DVD2 和软盘设置为自动检测，重新启动虚拟机后，再点击安装 VMware Tools。\",", "                \"source\": \"Python学科\",", "                \"timestamp\": \"2026\"", "            }", "        ),", "        Document(", "            page_content=\"Redis 连接池满了，通常是因为连接没有及时释放，或者并发请求过高，需要检查连接池配置和代码释放逻辑。\",", "            metadata={", "                \"parent_id\": \"parent_002\",", "                \"parent_content\": \"Redis 连接池满的排查方法：检查 max_connections 配置，确认代码是否正确释放连接，查看 Redis 服务端连接数，并结合应用日志分析是否存在连接泄漏。\",", "                \"source\": \"Python学科\",", "                \"timestamp\": \"2026\"", "            }", "        ),", "        Document(", "            page_content=\"Nginx 502 通常表示网关错误，常见原因包括后端服务不可用、端口错误、PHP-FPM 未启动、反向代理地址配置错误。\",", "            metadata={", "                \"parent_id\": \"parent_003\",", "                \"parent_content\": \"Nginx 502 排查方法：先检查后端服务是否正常启动，再检查 upstream 地址和端口是否正确，然后查看 Nginx error.log 和后端服务日志。\",", "                \"source\": \"Linux学科\",", "                \"timestamp\": \"2026\"", "            }", "        )", "    ]", "", "    # 3. 插入测试文档", "    print(\"开始插入测试文档...\")", "    vector_store.add_documents(test_docs)", "    print(\"测试文档插入完成\")", "", "    # 4. 执行一次混合检索", "    query = \"VMware Tools 灰色怎么办？\"", "    print(f\"开始检索，查询问题：{query}\")", "", "    results = vector_store.hybrid_search_with_rerank(", "        query=query,", "        k=5,", "        source_filter=\"Python学科\"", "    )", "", "    # 5. 打印检索结果", "    print(\"=\" * 80)", "    print(f\"检索结果数量：{len(results)}\")", "    print(\"=\" * 80)", "", "    for index, doc in enumerate(results, start=1):", "        print(f\"第 {index} 条结果\")", "        print(f\"内容：{doc.page_content}\")", "        print(f\"元数据：{doc.metadata}\")", "        print(\"-\" * 80)", "", "    print(\"VectorStore 测试完成\")", "    '''"]</script>
+<script id="steps-data" type="application/json">[{"id": "path", "node": "路径准备", "module": "路径准备", "lines": [16, 23], "title": "准备项目导入路径", "logic": "通过 current_dir、rag_qa_path、project_root 把 core 目录和项目根目录加入 sys.path，保证后面可以导入 base、rag_qa、models 等模块。", "dataFormat": {"current_dir": "str", "rag_qa_path": "str", "project_root": "str", "sys.path": "list[str]"}, "sample": {"current_dir": "D:/uv/edurag/rag_qa/vector_store", "rag_qa_path": "D:/uv/edurag/rag_qa", "project_root": "D:/uv/edurag"}, "effect": "Python 可以从项目目录中找到 Config、logger、document_processor 等模块。", "remember": "写项目代码时，路径处理的目标不是“运行一行代码”，而是让模块导入路径稳定。"}, {"id": "init", "node": "初始化对象", "module": "VectorStore 初始化", "lines": [25, 43], "title": "创建 VectorStore 对象", "logic": "读取 Config 中的 Milvus 配置，初始化重排序模型 CrossEncoder、BGE-M3 嵌入模型，并连接 Milvus。", "dataFormat": {"collection_name": "str", "host": "str", "port": "str|int", "database": "str", "reranker": "CrossEncoder", "embedding_function": "BGEM3EmbeddingFunction", "dense_dim": "int", "client": "MilvusClient"}, "sample": {"collection_name": "edu_rag_collection", "host": "192.168.88.100", "port": "19530", "database": "itcast", "dense_dim": 1024, "Milvus uri": "http://192.168.88.100:19530"}, "effect": "对象创建完成后，具备三个核心能力：生成向量、连接 Milvus、执行后续集合创建或加载。", "remember": "初始化阶段通常负责“准备工具”：模型、数据库客户端、集合名称、维度参数。"}, {"id": "has_collection_false", "node": "集合判断", "module": "集合创建分支", "lines": [45, 47], "title": "判断 Milvus 集合是否存在", "logic": "调用 has_collection(self.collection_name)。如果不存在，则创建 Schema 和索引。", "dataFormat": {"self.collection_name": "str", "has_collection_result": "bool"}, "sample": {"self.collection_name": "edu_rag_collection", "has_collection_result": false}, "effect": "进入新建集合分支：create_schema → add_field → add_index → create_collection。", "remember": "第一次运行通常是 False，需要建集合；后续运行通常是 True，只需要 load_collection。"}, {"id": "schema", "node": "Schema", "module": "Milvus Schema", "lines": [47, 63], "title": "定义 Milvus 字段结构", "logic": "创建 Schema，然后依次添加主键、文本、稠密向量、稀疏向量、父块信息、来源和时间戳字段。", "dataFormat": {"schema": "CollectionSchema", "field.id": "VARCHAR primary key", "field.text": "VARCHAR", "field.dense_vector": "FLOAT_VECTOR[1024]", "field.sparse_vector": "SPARSE_FLOAT_VECTOR", "field.metadata": "VARCHAR fields"}, "sample": {"id": "VARCHAR, primary=True, max_length=100", "text": "VARCHAR, max_length=65535", "dense_vector": "FLOAT_VECTOR, dim=1024", "sparse_vector": "SPARSE_FLOAT_VECTOR", "parent_id": "VARCHAR", "source": "VARCHAR"}, "effect": "Milvus 知道每条数据应该包含哪些字段，以及哪些字段用于向量检索。", "remember": "Schema 是表结构；dense_vector 做语义检索，sparse_vector 做关键词稀疏检索。"}, {"id": "index", "node": "Index", "module": "索引配置", "lines": [65, 80], "title": "为稠密向量和稀疏向量建立索引", "logic": "dense_vector 使用 IVF_FLAT + IP；sparse_vector 使用 SPARSE_INVERTED_INDEX + IP。", "dataFormat": {"index_params": "IndexParams", "dense index": "IVF_FLAT", "dense metric": "IP", "sparse index": "SPARSE_INVERTED_INDEX", "sparse metric": "IP"}, "sample": {"dense_vector": {"index_type": "IVF_FLAT", "metric_type": "IP", "params": {"nlist": 128}}, "sparse_vector": {"index_type": "SPARSE_INVERTED_INDEX", "metric_type": "IP", "params": {"drop_ratio_build": 0.2}}}, "effect": "Milvus 可以用更高效的方式检索 dense_vector 和 sparse_vector。", "remember": "索引决定怎么查；metric_type=IP 表示分数越大越相似。"}, {"id": "create_collection", "node": "Collection", "module": "创建集合", "lines": [82, 84], "title": "创建 Milvus 集合", "logic": "把 schema 和 index_params 一起传给 create_collection，完成集合创建。", "dataFormat": {"collection_name": "str", "schema": "CollectionSchema", "index_params": "IndexParams"}, "sample": {"create_collection": "edu_rag_collection", "fields": ["id", "text", "dense_vector", "sparse_vector", "parent_id", "parent_content", "source", "timestamp"]}, "effect": "Milvus 中出现一个可写入、可检索的集合。", "remember": "创建集合 = 字段结构 + 索引配置 + 集合名称。"}, {"id": "main_process", "node": "Document", "module": "处理文档", "lines": [212, 228], "title": "处理原始文档，得到 Document 列表", "logic": "调用 process_documents，把目录下的文件解析、切块，得到 LangChain Document 对象列表。", "dataFormat": {"documents": "list[Document]", "Document.page_content": "str", "Document.metadata": "dict"}, "sample": {"documents[0]": {"page_content": "人工智能课程主要学习机器学习、深度学习和大模型应用。", "metadata": {"parent_id": "parent_ai_001", "parent_content": "人工智能课程完整介绍..."}}}, "effect": "原始文件变成可以入库的文档块。", "remember": "RAG 入库前，通常先做“文档解析 → 切块 → metadata 标注”。"}, {"id": "tag_docs", "node": "Document", "module": "补充元数据", "lines": [230, 233], "title": "给文档补充 source 和 timestamp", "logic": "遍历 documents，为每个 Document 的 metadata 增加 source=ai 和 timestamp=2026。", "dataFormat": {"doc": "Document", "doc.metadata": "dict[str,str]"}, "sample": {"before": {"metadata": {"parent_id": "parent_ai_001"}}, "after": {"metadata": {"parent_id": "parent_ai_001", "source": "ai", "timestamp": "2026"}}}, "effect": "后续检索可以通过 source_filter=\"ai\" 过滤只查 AI 文档。", "remember": "metadata 是检索过滤和答案溯源的关键。"}, {"id": "extract_texts", "node": "Document", "module": "入库：提取文本", "lines": [90, 94], "title": "从 Document 中提取文本并生成 BGE-M3 向量", "logic": "先把 documents 转成 texts，再调用 embedding_function(texts) 同时生成 dense 和 sparse。", "dataFormat": {"texts": "list[str]", "embeddings": "dict[str, Any]", "embeddings[\"dense\"]": "list[list[float]]", "embeddings[\"sparse\"]": "CSR sparse matrix / sparse array"}, "sample": {"texts": ["人工智能课程主要学习机器学习、深度学习和大模型应用。", "Milvus 是向量数据库，支持稠密向量和稀疏向量检索。"], "embeddings": {"dense": "[[0.012,-0.034,0.087,...], [...]] shape=(2,1024)", "sparse": "2 rows, each row has token_id:value pairs"}}, "effect": "文本被转换成两种检索信号：dense 负责语义，sparse 负责关键词。", "remember": "BGE-M3 的特点是一次生成 dense + sparse，适合混合检索。"}, {"id": "build_data", "node": "入库字典", "module": "入库：构造 data", "lines": [95, 119], "title": "把每个 Document 组装成 Milvus 可写入的字典", "logic": "循环每个 doc：用 MD5 生成 id，把 sparse 行转换成 dict[int,float]，再和文本、向量、metadata 一起 append 到 data。", "dataFormat": {"data": "list[dict]", "id": "str(md5)", "dense_vector": "list[float] length=1024", "sparse_vector": "dict[int,float]", "metadata fields": "str"}, "sample": {"data[0]": {"id": "6f5902ac237024bdd0c176cb93063dc4", "text": "人工智能课程主要学习机器学习、深度学习和大模型应用。", "dense_vector": "[0.012,-0.034,0.087,...]", "sparse_vector": {"3054": 0.61, "8912": 0.43, "12001": 0.38}, "parent_id": "parent_ai_001", "source": "ai", "timestamp": "2026"}}, "effect": "data 从 list[Document] 变成 Milvus upsert 能直接接收的 list[dict]。", "remember": "入库数据必须和 Schema 字段名一致。字段名错了，Milvus 写入会失败。"}, {"id": "upsert", "node": "Upsert", "module": "写入 Milvus", "lines": [120, 124], "title": "写入、刷新并加载集合", "logic": "data 非空时，依次执行 upsert、flush、load_collection。", "dataFormat": {"data": "list[dict]", "upsert target": "collection_name", "flush": "persist segments", "load_collection": "make collection searchable"}, "sample": {"len(data)": 2, "operation": ["upsert edu_rag_collection", "flush edu_rag_collection", "load_collection edu_rag_collection"]}, "effect": "文档数据进入 Milvus，并且可以立即被 hybrid_search 检索。", "remember": "写入后 flush/load 可以降低“刚写入却查不到”的教学困惑。"}, {"id": "query_embedding", "node": "查询向量化", "module": "检索：查询向量", "lines": [127, 130], "title": "把用户问题转换成查询向量", "logic": "对 query 包一层列表传入 embedding_function，取 dense[0] 作为稠密查询向量。", "dataFormat": {"query": "str", "query_embeddings": "dict", "dense_query_vector": "list[float] length=1024"}, "sample": {"query": "人工智能主要学什么？", "query_embeddings[\"dense\"][0]": "[0.023,-0.018,0.104,...]", "dense_query_vector shape": "(1024,)"}, "effect": "用户问题变成可以和 dense_vector 做 IP 相似度计算的向量。", "remember": "检索时，文档和查询必须用同一个 embedding 模型。"}, {"id": "sparse_query", "node": "查询稀疏", "module": "检索：稀疏向量", "lines": [131, 146], "title": "把查询稀疏向量转换成 dict[int, float]", "logic": "从 query_embeddings[\"sparse\"][0] 取 indices 和 values，再 zip 成 Milvus 需要的 sparse_query_vector 字典。", "dataFormat": {"sparse_query_vector": "dict[int,float]", "indices": "array[int]", "values": "array[float]"}, "sample": {"indices": "[3054, 8912, 12001]", "values": "[0.72, 0.46, 0.39]", "sparse_query_vector": {"3054": 0.72, "8912": 0.46, "12001": 0.39}}, "effect": "用户问题获得关键词检索信号，可与 sparse_vector 做稀疏检索。", "remember": "Milvus 的稀疏向量通常传 dict：token_id 是 key，权重是 value。"}, {"id": "filter", "node": "过滤条件", "module": "检索：过滤表达式", "lines": [147, 147], "title": "根据 source_filter 生成过滤条件", "logic": "如果传入 source_filter=\"ai\"，filter_expr 就是 source=='ai'；否则为空字符串。", "dataFormat": {"source_filter": "str|None", "filter_expr": "str"}, "sample": {"source_filter": "ai", "filter_expr": "source=='ai'"}, "effect": "检索只在 source 为 ai 的文档中进行。", "remember": "过滤条件是 metadata 检索的入口。"}, {"id": "requests", "node": "SearchRequest", "module": "检索：两路请求", "lines": [148, 161], "title": "创建 dense_request 和 sparse_request", "logic": "分别创建 AnnSearchRequest：一路查 dense_vector，一路查 sparse_vector。", "dataFormat": {"dense_request": "AnnSearchRequest", "sparse_request": "AnnSearchRequest", "reqs": "list[AnnSearchRequest]"}, "sample": {"dense_request": {"anns_field": "dense_vector", "metric_type": "IP", "nprobe": 10, "limit": 5, "expr": "source=='ai'"}, "sparse_request": {"anns_field": "sparse_vector", "metric_type": "IP", "params": {}, "limit": 5, "expr": "source=='ai'"}}, "effect": "Milvus 收到两个检索请求：语义相似度一路，关键词稀疏一路。", "remember": "混合检索不是一个 request，而是多个 AnnSearchRequest + 一个 ranker。"}, {"id": "ranker", "node": "WeightedRanker", "module": "检索：融合排序", "lines": [162, 170], "title": "执行 hybrid_search 并融合两路得分", "logic": "WeightedRanker(1.0, 0.7) 表示 dense 得分权重 1.0，sparse 得分权重 0.7，然后 hybrid_search 返回 Hit 列表。", "dataFormat": {"ranker": "WeightedRanker", "result": "list[Hit]", "hit.entity": "dict"}, "sample": {"weights": {"dense": 1.0, "sparse": 0.7}, "result[0].entity": {"text": "人工智能课程主要学习机器学习...", "parent_id": "parent_ai_001", "source": "ai", "timestamp": "2026"}}, "effect": "最终候选结果同时考虑语义相似和关键词匹配。", "remember": "权重越大，该路检索对最终排序影响越大。"}, {"id": "hit_to_doc", "node": "Hit 转 Document", "module": "结果转换", "lines": [171, 173, 201, 210], "title": "把 Milvus Hit 转成 LangChain Document", "logic": "对每个 hit[\"entity\"] 调用 _doc_from_hit，保留 text、parent_id、parent_content、source、timestamp。", "dataFormat": {"sub_chunks": "list[Document]", "Document.page_content": "hit.text", "Document.metadata": "dict"}, "sample": {"sub_chunks[0]": {"page_content": "人工智能课程主要学习机器学习...", "metadata": {"parent_id": "parent_ai_001", "parent_content": "人工智能课程完整介绍...", "source": "ai", "timestamp": "2026"}}}, "effect": "Milvus 原始命中结果变成 RAG 链路常用的 Document 对象。", "remember": "向量数据库返回的是 hit；RAG 后续更常用 Document。"}, {"id": "unique_parent", "node": "父文档去重", "module": "父块去重", "lines": [174, 178, 190, 199], "title": "根据 parent_content 去重父文档", "logic": "多个子块可能来自同一个父块，所以用 parent_contents set 去重，只保留唯一父文档。", "dataFormat": {"parent_contents": "set[str]", "unique_docs": "list[Document]", "parent_docs": "list[Document]"}, "sample": {"sub_chunks parent_id": ["parent_ai_001", "parent_ai_001", "parent_ai_002"], "parent_docs parent_id": ["parent_ai_001", "parent_ai_002"]}, "effect": "避免同一个父文档重复进入 Rerank，减少上下文冗余。", "remember": "Parent-Child Chunking 检索子块，返回父块；这里就是从子块回到父块。"}, {"id": "rerank", "node": "CrossEncoder", "module": "Rerank 精排", "lines": [179, 188], "title": "用 CrossEncoder 对父文档重新排序", "logic": "把 query 和每个父文档组成 pair，reranker.predict 输出相关性分数，再按分数降序排序。", "dataFormat": {"pairs": "list[list[str,str]]", "scores": "list[float]", "ranked_parent_docs": "list[Document]"}, "sample": {"pairs": [["人工智能主要学什么？", "人工智能课程完整介绍..."], ["人工智能主要学什么？", "Milvus 向量数据库介绍..."]], "scores": [0.91, 0.63], "ranked_parent_docs": ["parent_ai_001", "parent_ai_002"]}, "effect": "粗排候选文档经过精排后，最相关的父文档排在最前面。", "remember": "向量检索负责召回，CrossEncoder 负责精排。"}, {"id": "return", "node": "返回上下文", "module": "返回结果", "lines": [188, 188, 240, 253], "title": "返回最终上下文给 RAG", "logic": "返回 ranked_parent_docs[:Config().CANDIDATE_M]，主程序打印结果数量、metadata 和内容片段。", "dataFormat": {"return": "list[Document]", "Config().CANDIDATE_M": "int"}, "sample": {"return": [{"page_content": "人工智能课程完整介绍：包括机器学习、深度学习、大模型应用...", "metadata": {"source": "ai", "timestamp": "2026"}}]}, "effect": "这些 Document 可以继续交给大模型作为上下文生成答案。", "remember": "检索模块最终产物不是字符串答案，而是用于回答的上下文文档。"}]</script>
+<script>
+const CODE_LINES = JSON.parse(document.getElementById('code-data').textContent);
+const BASE_STEPS = JSON.parse(document.getElementById('steps-data').textContent);
+const nodeInfo = [
+  ['路径准备','sys.path'],['初始化对象','模型 / Milvus'],['集合判断','has_collection'],['Schema','字段结构'],['Index','稠密 / 稀疏'],
+  ['Collection','create/load'],['Document','原始文档块'],['BGE-M3','dense + sparse'],['入库字典','list[dict]'],['Upsert','写入 Milvus'],
+  ['查询向量化','query embedding'],['查询稀疏','dict[int,float]'],['过滤条件','source'],['SearchRequest','两路检索'],['WeightedRanker','融合排序'],
+  ['Hit 转 Document','_doc_from_hit'],['父文档去重','parent_content'],['CrossEncoder','精排'],['返回上下文','list[Document]']
+];
+// 流程节点到业务步骤的映射。某些节点名称不是 step.node，必须显式映射，
+// 例如 BGE-M3 节点对应的是“extract_texts：生成 dense + sparse”。
+const NODE_STEP_MAP = {
+  '路径准备': 'path',
+  '初始化对象': 'init',
+  '集合判断': 'has_collection_false',
+  'Schema': 'schema',
+  'Index': 'index',
+  'Collection': 'create_collection',
+  'Document': 'main_process',
+  'BGE-M3': 'extract_texts',
+  '入库字典': 'build_data',
+  'Upsert': 'upsert',
+  '查询向量化': 'query_embedding',
+  '查询稀疏': 'sparse_query',
+  '过滤条件': 'filter',
+  'SearchRequest': 'requests',
+  'WeightedRanker': 'ranker',
+  'Hit 转 Document': 'hit_to_doc',
+  '父文档去重': 'unique_parent',
+  'CrossEncoder': 'rerank',
+  '返回上下文': 'return'
+};
+function getStepIndexForNode(nodeName){
+  if(!Array.isArray(steps) || !nodeName) return -1;
+  const stepId = NODE_STEP_MAP[nodeName];
+  if(stepId){
+    const byId = steps.findIndex(s => s.id === stepId);
+    if(byId >= 0) return byId;
+  }
+  return steps.findIndex(s => s.node === nodeName || s.module === nodeName || s.id === nodeName);
+}
+let steps = [];
+let idx = -1;
+let timer = null;
+const codeBox = document.getElementById('codeBox');
+const flow = document.getElementById('flow');
+const scenarioEl = document.getElementById('scenario');
+const statusEl = document.getElementById('status');
+const autoBtn = document.getElementById('autoBtn');
+function escapeHtml(text){
+  return String(text).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function colorPlain(segment){
+  const keywords = new Set(['class','def','if','else','elif','for','in','return','try','except','import','from','as','None','True','False','not','and','or','with','is','pass','break','continue']);
+  const classes = new Set(['VectorStore','BGEM3EmbeddingFunction','MilvusClient','DataType','AnnSearchRequest','WeightedRanker','Document','CrossEncoder','Config']);
+  const builtins = new Set(['len','enumerate','zip','sorted','set','list','dict','print','range','isinstance','hasattr','str','int','float','bool','os','sys','hashlib','logger','self']);
+  return segment.replace(/[A-Za-z_][A-Za-z0-9_]*|\d+\.\d+|\d+|[^A-Za-z0-9_]+/g, (tok, offset) => {
+    if (/^[A-Za-z_]/.test(tok)) {
+      if (keywords.has(tok)) return `<span class="tok-kw">${tok}</span>`;
+      if (classes.has(tok)) return `<span class="tok-class">${tok}</span>`;
+      if (builtins.has(tok)) return `<span class="tok-builtin">${tok}</span>`;
+      const rest = segment.slice(offset + tok.length);
+      if (rest.trimStart().startsWith('(')) return `<span class="tok-func">${tok}</span>`;
+      return escapeHtml(tok);
+    }
+    if (/^\d/.test(tok)) return `<span class="tok-num">${tok}</span>`;
+    return escapeHtml(tok);
+  });
+}
+function highlightPython(line){
+  if (line.trim().startsWith('#')) return `<span class="tok-comment">${escapeHtml(line)}</span>`;
+  let out = '';
+  let plain = '';
+  for (let i = 0; i < line.length;) {
+    const ch = line[i];
+    if (ch === '#') {
+      out += colorPlain(plain);
+      plain = '';
+      out += `<span class="tok-comment">${escapeHtml(line.slice(i))}</span>`;
+      break;
+    }
+    if (ch === '"' || ch === "'") {
+      out += colorPlain(plain);
+      plain = '';
+      const quote = ch;
+      let j = i + 1;
+      while (j < line.length) {
+        if (line[j] === '\\') { j += 2; continue; }
+        if (line[j] === quote) { j++; break; }
+        j++;
+      }
+      out += `<span class="tok-str">${escapeHtml(line.slice(i, j))}</span>`;
+      i = j;
+      continue;
+    }
+    plain += ch;
+    i++;
+  }
+  if (plain) out += colorPlain(plain);
+  return out || ' ';
+}
+function renderCode(){
+  codeBox.innerHTML = '';
+  CODE_LINES.forEach((line, i)=>{
+    const div = document.createElement('div');
+    div.className = 'line' + (line.trim()===''?' blank':'') + (line.trim().startsWith('#')?' comment':'');
+    div.dataset.line = i+1;
+    const num = document.createElement('span'); num.className='num'; num.textContent=i+1;
+    const txt = document.createElement('span'); txt.className='txt'; txt.innerHTML=highlightPython(line || ' ');
+    div.appendChild(num); div.appendChild(txt); codeBox.appendChild(div);
+  });
+}
+function buildSteps(){
+  const s = scenarioEl.value;
+  let arr = BASE_STEPS.map(x=>JSON.parse(JSON.stringify(x)));
+  if(s==='exists'){
+    arr = arr.filter(x=>!['has_collection_false','schema','index','create_collection'].includes(x.id));
+    arr.splice(2,0,{id:'load_exists',node:'Collection',module:'集合加载分支',lines:[45,46,85,88],title:'集合已存在，直接加载',logic:'has_collection 返回 True，代码进入 else 分支，执行 load_collection，确保集合可查询。',dataFormat:{'has_collection_result':'bool','collection_name':'str','operation':'load_collection'},sample:{'has_collection_result':true,'collection_name':'edu_rag_collection','operation':'client.load_collection("edu_rag_collection")'},effect:'跳过 Schema 和 Index 创建，直接加载已有集合。',remember:'生产环境通常不会每次建集合，已有集合只需要 load。'});
+  }
+  if(s==='one_parent'){
+    arr = arr.filter(x=>x.id!=='rerank');
+    const st = arr.find(x=>x.id==='unique_parent');
+    if(st){st.title='只得到 1 个父文档，直接返回';st.logic='parent_docs 去重后长度小于 2，触发 if len(parent_docs) < 2，直接返回前 CANDIDATE_M 个文档。';st.sample={'sub_chunks parent_id':['parent_ai_001','parent_ai_001'],'parent_docs parent_id':['parent_ai_001'],'len(parent_docs)':1,'return':'parent_docs[:CANDIDATE_M]'};st.effect='跳过 CrossEncoder Rerank，减少不必要计算。';}
+  }
+  if(s==='no_filter'){
+    const st = arr.find(x=>x.id==='filter');
+    if(st){st.title='source_filter 为空，不添加过滤条件';st.logic='source_filter=None 时，filter_expr 为空字符串，Milvus 在整个集合中检索。';st.sample={'source_filter':null,'filter_expr':''};st.effect='不限制 source，所有来源的文档都参与检索。';}
+  }
+  if(s==='sparse_fallback'){
+    const st = arr.find(x=>x.id==='sparse_query');
+    if(st){st.title='稀疏向量读取异常，使用 getrow(0) 兜底';st.logic='try 中读取 query_embeddings["sparse"][0] 失败时，except 分支调用 getrow(0)，再取 indices 和 data。';st.lines=[131,146];st.sample={'try result':'query_embeddings["sparse"][0] 抛出异常','fallback':'row = query_embeddings["sparse"].getrow(0)','indices':'[3054, 8912]','values':'[0.72, 0.46]','sparse_query_vector':{3054:0.72,8912:0.46}};st.effect='不同稀疏矩阵格式都可以被转换成 Milvus 需要的 dict[int,float]。';}
+  }
+  steps = arr;
+}
+function renderFlow(){
+  flow.innerHTML='';
+  nodeInfo.forEach(([a,b])=>{
+    const n=document.createElement('div');n.className='node';n.dataset.node=a;n.innerHTML=`<div class="n1">${a}</div><div class="n2">${b}</div>`;flow.appendChild(n);
+  });
+}
+function clearHighlights(){document.querySelectorAll('.line').forEach(x=>x.classList.remove('active','range'));}
+function highlightLines(ranges){
+  clearHighlights();
+  if(!Array.isArray(ranges)) return;
+  let nums=[];
+  if(ranges.length===2 && typeof ranges[0]==='number' && typeof ranges[1]==='number'){
+    for(let n=ranges[0];n<=ranges[1];n++) nums.push(n);
+  }else{
+    nums = ranges.filter(x=>typeof x==='number');
+  }
+  nums.forEach((n,j)=>{const el=codeBox.querySelector(`.line[data-line="${n}"]`); if(el){el.classList.add(j===0?'active':'range');}});
+  const first=nums[0]; const el=codeBox.querySelector(`.line[data-line="${first}"]`); if(el){
+    const target = el.offsetTop - codeBox.clientHeight/2 + 80; codeBox.scrollTo({top:Math.max(0,target),behavior:'smooth'});
+  }
+}
+function renderKV(obj){
+  const box=document.getElementById('formatBox');box.innerHTML='';
+  Object.entries(obj||{}).forEach(([k,v])=>{const ke=document.createElement('div');ke.className='k';ke.textContent=k;const ve=document.createElement('div');ve.className='v';ve.textContent=String(v);box.appendChild(ke);box.appendChild(ve);});
+}
+function renderStep(){
+  clearHighlights();
+  document.querySelectorAll('.node').forEach(n=>n.classList.remove('active','done'));
+  if(idx<0){
+    document.getElementById('stepBadge').textContent='等待开始';document.getElementById('moduleBadge').textContent='模块：-';
+    document.getElementById('explain').innerHTML='<h3>准备演示</h3><p>点击“自动演示”或“手工下一步”，页面会按业务逻辑展示代码、数据格式、具体数据和操作效果。</p>';
+    document.getElementById('diagram').innerHTML='';renderKV({});document.getElementById('sampleBox').textContent='暂无数据';document.getElementById('effectBox').textContent='暂无操作效果';document.getElementById('rememberBox').textContent='先看流程，再看代码。';statusEl.textContent='等待开始';return;
+  }
+  const s=steps[idx];
+  highlightLines(s.lines);
+  document.getElementById('stepBadge').textContent=`第 ${idx+1}/${steps.length} 步`;
+  document.getElementById('moduleBadge').textContent=`模块：${s.module}`;
+  document.getElementById('explain').innerHTML=`<h3>${s.title}</h3><p>${s.logic}</p>`;
+  renderKV(s.dataFormat);
+  document.getElementById('sampleBox').textContent=JSON.stringify(s.sample,null,2);
+  document.getElementById('effectBox').textContent=s.effect;
+  document.getElementById('rememberBox').textContent=s.remember;
+  document.querySelectorAll('.node').forEach(n=>{
+    const nodeName=n.dataset.node;
+    const targetIndex = (typeof getStepIndexForNode === 'function')
+      ? getStepIndexForNode(nodeName)
+      : steps.findIndex(x=>x.node===nodeName);
+    if(targetIndex === idx) n.classList.add('active');
+    else if(targetIndex >= 0 && targetIndex < idx) n.classList.add('done');
+  });
+  const hot = [s.node, s.module].filter(Boolean);
+  document.getElementById('diagram').innerHTML = makeDiagram(s);
+  statusEl.textContent=`${s.module} · ${s.title}`;
+}
+function makeDiagram(s){
+  const map={
+    'path':['当前文件','sys.path','项目模块'],
+    'init':['Config','模型对象','MilvusClient'],
+    'has_collection_false':['collection_name','has_collection=False','创建分支'],
+    'load_exists':['collection_name','has_collection=True','load_collection'],
+    'schema':['字段定义','Schema','Milvus 表结构'],
+    'index':['dense_vector','IndexParams','sparse_vector'],
+    'create_collection':['Schema + Index','create_collection','Collection'],
+    'main_process':['原始文件','process_documents','list[Document]'],
+    'tag_docs':['Document','metadata 标注','source/timestamp'],
+    'extract_texts':['texts','BGE-M3','dense + sparse'],
+    'build_data':['Document + embeddings','list[dict]','Milvus row'],
+    'upsert':['data','upsert / flush / load','可检索集合'],
+    'query_embedding':['query','BGE-M3','dense_query_vector'],
+    'sparse_query':['sparse row','indices + values','dict[int,float]'],
+    'filter':['source_filter','filter_expr','过滤检索范围'],
+    'requests':['dense_request','sparse_request','reqs'],
+    'ranker':['dense + sparse','WeightedRanker','hybrid result'],
+    'hit_to_doc':['Milvus Hit','_doc_from_hit','Document'],
+    'unique_parent':['sub_chunks','parent_content 去重','parent_docs'],
+    'rerank':['query + parent_docs','CrossEncoder scores','ranked_parent_docs'],
+    'return':['ranked_parent_docs','切片 CANDIDATE_M','返回上下文']
+  };
+  const arr=map[s.id]||[s.module,s.title,'完成'];
+  return arr.map((x,i)=>`<span class="pill ${i===1?'hot':''}">${x}</span>`).join('<span class="arrow">→</span>');
+}
+function next(){ if(idx<steps.length-1){idx++;renderStep();} }
+function prev(){ if(idx>0){idx--;renderStep();} }
+function reset(){ stopAuto(); idx=-1; codeBox.scrollTo({top:0}); renderStep(); }
+function stopAuto(){ if(timer){clearInterval(timer);timer=null;} autoBtn.textContent='自动演示'; autoBtn.disabled=false; }
+function auto(){
+  if(timer){stopAuto();return;}
+  if(idx>=steps.length-1) idx=-1;
+  autoBtn.textContent='停止演示';
+  timer=setInterval(()=>{
+    if(idx>=steps.length-1){stopAuto();return;}
+    next();
+  },1050);
+}
+scenarioEl.addEventListener('change',()=>{buildSteps();reset();});
+document.getElementById('nextBtn').addEventListener('click',next);
+document.getElementById('prevBtn').addEventListener('click',prev);
+document.getElementById('resetBtn').addEventListener('click',reset);
+autoBtn.addEventListener('click',auto);
+renderCode();renderFlow();buildSteps();renderStep();
+</script>
+
+<script id="click-locate-and-height-sync">
+(function(){
+  const grid = document.querySelector('.grid');
+  const leftPanel = document.querySelector('.grid > .panel:first-child');
+  const rightPanel = document.querySelector('.grid > .panel:nth-child(2)');
+  const codeBoxEl = document.getElementById('codeBox');
+  const flowEl = document.getElementById('flow');
+
+  function syncPanelHeights(){
+    if(!leftPanel || !rightPanel || !codeBoxEl) return;
+    if(window.innerWidth <= 1250){
+      leftPanel.style.height = '';
+      return;
+    }
+    // 让左侧整体高度尽量与右侧图解区一致；代码更长时，代码框内部滚动。
+    requestAnimationFrame(()=>{
+      const rightHeight = Math.max(620, Math.ceil(rightPanel.getBoundingClientRect().height));
+      leftPanel.style.height = rightHeight + 'px';
+    });
+  }
+
+  function flashLocatedLines(nums){
+    if(!Array.isArray(nums) || !codeBoxEl) return;
+    const flat = [];
+    if(nums.length===2 && typeof nums[0]==='number' && typeof nums[1]==='number'){
+      for(let n=nums[0]; n<=nums[1]; n++) flat.push(n);
+    }else{
+      nums.forEach(n=>{ if(typeof n==='number') flat.push(n); });
+    }
+    document.querySelectorAll('.line.locate-flash').forEach(el=>el.classList.remove('locate-flash'));
+    flat.slice(0, 16).forEach(n=>{
+      const el = codeBoxEl.querySelector(`.line[data-line="${n}"]`);
+      if(el){
+        el.classList.remove('locate-flash');
+        void el.offsetWidth;
+        el.classList.add('locate-flash');
+      }
+    });
+  }
+
+  function locateCurrentStep(){
+    if(typeof steps === 'undefined' || typeof idx === 'undefined' || idx < 0) return;
+    const s = steps[idx];
+    if(!s) return;
+    if(typeof highlightLines === 'function') highlightLines(s.lines);
+    flashLocatedLines(s.lines);
+    syncPanelHeights();
+  }
+
+  function jumpToNode(nodeName){
+    if(typeof steps === 'undefined' || !nodeName) return;
+    const target = (typeof getStepIndexForNode === 'function')
+      ? getStepIndexForNode(nodeName)
+      : steps.findIndex(s => s.node === nodeName);
+    if(target >= 0){
+      idx = target;
+      if(typeof renderStep === 'function') renderStep();
+      locateCurrentStep();
+    }
+  }
+
+  // 包装原来的 renderStep：每次切换步骤后自动同步左右高度，并给右侧块加提示。
+  if(typeof renderStep === 'function'){
+    const oldRenderStep = renderStep;
+    renderStep = function(){
+      oldRenderStep();
+      syncPanelHeights();
+      document.querySelectorAll('.explain,.diagram,.cards .card,.rightTop .badge').forEach(el=>{
+        el.title = '点击定位到左侧对应代码';
+      });
+      document.querySelectorAll('.flow .node').forEach(el=>{
+        el.title = '点击跳转到该流程对应代码';
+      });
+    };
+  }
+
+  // 点击流程节点：跳到该流程第一处对应代码。
+  if(flowEl){
+    flowEl.addEventListener('click', (event)=>{
+      const node = event.target.closest('.node');
+      if(!node) return;
+      jumpToNode(node.dataset.node);
+    });
+  }
+
+  // 点击右侧说明块、数据格式、示例数据、操作效果：定位当前步骤代码。
+  document.addEventListener('click', (event)=>{
+    const block = event.target.closest('.explain,.diagram,.cards .card,.rightTop .badge');
+    if(!block) return;
+    locateCurrentStep();
+  });
+
+  window.addEventListener('resize', syncPanelHeights);
+  setTimeout(syncPanelHeights, 80);
+  setTimeout(syncPanelHeights, 400);
+})();
+</script>
+
+</body>
+</html>

@@ -20,7 +20,7 @@ $extensionRoots = Get-ChildItem -Path $projectRoot -Directory -Filter "day*" |
       @{ Day = $dayKey; Path = $extensionDir.FullName }
     }
   } |
-  Where-Object { $_ -and $_.Day -match "^day0[2-7]$" }
+  Where-Object { $_ -and $_.Day -match "^day0[2-9]$" }
 
 function HtmlEncode([string]$value) {
   return [System.Net.WebUtility]::HtmlEncode($value)
@@ -176,7 +176,7 @@ $html = @"
     <div class="brand-block">
       <p class="eyebrow">完整参考资料</p>
       <h1>EduRAG 源码全文与扩展资料库</h1>
-      <p class="lead">这里集中整理完整项目源码，以及 day02 到 day07 的所有扩展资料、动画演示和图例。生成时间：$generatedAt</p>
+      <p class="lead">这里集中整理完整项目源码，以及 day02 到 day09 的所有扩展资料、动画演示和图例。生成时间：$generatedAt</p>
     </div>
     <nav class="top-tabs" aria-label="详细资料导航">
       <a class="tab-link" href="index.html">返回学习路线</a>
@@ -197,7 +197,7 @@ $html = @"
         <span>扩展资料文件</span>
       </article>
       <article>
-        <strong>day02-day07</strong>
+        <strong>day02-day09</strong>
         <span>每日扩展内容已归档</span>
       </article>
     </section>
@@ -246,7 +246,7 @@ $($sourceCards -join "`n")
 
         <section id="extension-library" class="detail-section">
           <h2>扩展资料库</h2>
-          <p class="muted">下面的资源来自 day02 到 day07 的扩展文件夹。Markdown 和 TXT 默认折叠，HTML 动画提供折叠预览和单独打开入口，避免完整资料库一次展开过长。</p>
+          <p class="muted">下面的资源来自 day02 到 day09 的扩展文件夹。Markdown 和 TXT 默认折叠，HTML 动画提供折叠预览和单独打开入口，避免完整资料库一次展开过长。</p>
           <div class="detail-grid">
 $($extensionCards -join "`n")
           </div>
@@ -262,6 +262,7 @@ $($extensionCards -join "`n")
 
 Set-Content -Path (Join-Path $siteRoot "details.html") -Value $html -Encoding UTF8
 Write-Host "Generated details.html with $sourceCount source files and $extensionCount extension files."
+
 
 
 
